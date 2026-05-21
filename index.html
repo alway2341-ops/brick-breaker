@@ -27,8 +27,8 @@
     var balls = [{ x: 240, y: 370, dx: 1.8, dy: -1.8, radius: 8 }];
     var bricks = [], particles = [], score = 0, flash = 0;
     var brickSpeedBase = 0.5; 
+    var lastTime = 0;
 
-    // 파일 이름이 반드시 소문자 'bgm.wav', 'break.wav'여야 합니다.
     const breakSound = new Audio('break.wav');
     const bgm = new Audio('bgm.wav');
     bgm.loop = true; bgm.volume = 0.5;
@@ -38,7 +38,8 @@
         bgm.play().catch(e => console.log("BGM 재생 대기"));
         document.getElementById('startScreen').style.display = 'none';
         running = true;
-        gameLoop();
+        lastTime = performance.now();
+        requestAnimationFrame(gameLoop);
     }
 
     function movePaddle(e) {
@@ -49,61 +50,16 @@
     canvas.addEventListener("mousemove", movePaddle);
     canvas.addEventListener("touchmove", movePaddle, { passive: false });
 
-    function gameLoop() {
+    function gameLoop(timestamp) {
         if(!running) return;
+        
+        // 시간 기반 속도 보정 (PC/모바일 주사율 차이 해결)
+        var deltaTime = (timestamp - lastTime) / 16.67;
+        lastTime = timestamp;
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if(flash > 0) { ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height); flash--; }
         
         paddleX = mouseX - paddleWidth/2;
         ctx.fillStyle = "#34495e";
-        ctx.fillRect(paddleX, 390, paddleWidth, 10);
-
-        if(Math.random() < 0.015) {
-            bricks.unshift({ x: Math.random() * 420, y: 0, type: Math.random() < 0.1 ? 2 : (Math.random() < 0.3 ? 1 : 0), speed: 0.2 + Math.random() * 0.6 });
-        }
-
-        // 파티클 업데이트
-        particles.forEach((p, i) => { p.x += p.dx; p.y += p.dy; p.life--; ctx.fillStyle="red"; ctx.fillRect(p.x, p.y, 3, 3); if(p.life <= 0) particles.splice(i, 1); });
-
-        bricks.forEach((b, i) => {
-            b.y += (brickSpeedBase + (score * 0.0005)) * b.speed;
-            ctx.fillStyle = b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c");
-            ctx.fillRect(b.x, b.y, 50, 20);
-            
-            balls.forEach(ball => {
-                if(ball.x > b.x && ball.x < b.x+50 && ball.y > b.y && ball.y < b.y+20) {
-                    breakSound.currentTime = 0;
-                    breakSound.play().catch(e => {});
-                    
-                    if(b.type === 2) { bricks = bricks.filter(br => Math.hypot(br.x - b.x, br.y - b.y) > 80); flash = 10; }
-                    else if(b.type === 1) balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8 });
-                    
-                    for(let k=0; k<10; k++) particles.push({x:b.x+25, y:b.y+10, dx:(Math.random()-0.5)*6, dy:(Math.random()-0.5)*6, life:20});
-                    
-                    ball.dy = -ball.dy; bricks.splice(i, 1); score++;
-                }
-            });
-            if(b.y > 400) { running = false; bgm.pause(); alert("Game Over! Score: " + score); location.reload(); }
-        });
-
-        balls.forEach((ball, i) => {
-            ball.x += ball.dx * (1 + score * 0.005);
-            ball.y += ball.dy * (1 + score * 0.005);
-            if(ball.x > 470 || ball.x < 10) ball.dx = -ball.dx;
-            if(ball.y < 10) ball.dy = -ball.dy;
-            if(ball.y > 385 && ball.x > paddleX - 5 && ball.x < paddleX + paddleWidth + 5) {
-                var paddleCenter = paddleX + paddleWidth / 2;
-                var dist = ball.x - paddleCenter;
-                ball.dy = -Math.abs(ball.dy);
-                if (Math.abs(dist) > 10) ball.dx = dist * 0.15;
-            }
-            if(ball.y > 450) { balls.splice(i, 1); if(balls.length === 0) { running = false; bgm.pause(); alert("Score: "+score); location.reload(); } }
-            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2); ctx.fillStyle = "gold"; ctx.fill();
-        });
-
-        ctx.fillStyle = "black"; ctx.fillText("Score: " + score, 10, 20);
-        requestAnimationFrame(gameLoop);
-    }
-</script>
-</body>
-</html>
+        ctx.fillRect(paddleX, 390, paddle
