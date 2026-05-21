@@ -22,101 +22,90 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var canvas = document.getElementById("myCanvas"), ctx = canvas.getContext("2d");
-        var paddleWidth = 100, paddleX = 190, mouseX = 240, running = false;
-        var balls = [], bricks = [], particles = [], score = 0, lastTime = 0, flash = 0;
+    var canvas = document.getElementById("myCanvas"), ctx = canvas.getContext("2d");
+    var paddleWidth = 100, paddleX = 190, mouseX = 240, running = false;
+    var balls = [], bricks = [], particles = [], score = 0, lastTime = 0, flash = 0;
+    var breakSound = new Audio('break.wav');
+    var bgm = new Audio('bgm.wav'); bgm.loop = true;
 
-        var breakSound = new Audio('break.wav');
-        var bgm = new Audio('bgm.wav');
-        bgm.loop = true;
+    function createParticles(x, y, color) {
+        for(let i = 0; i < 15; i++) {
+            particles.push({ x: x, y: y, dx: (Math.random()-0.5)*6, dy: (Math.random()-0.5)*6, radius: Math.random()*2+1, color: color, life: 20 });
+        }
+    }
 
-        function createParticles(x, y, color) {
-            for(let i = 0; i < 15; i++) {
-                particles.push({ x: x, y: y, dx: (Math.random()-0.5)*6, dy: (Math.random()-0.5)*6, radius: Math.random()*2+1, color: color, life: 20 });
-            }
+    // 버튼 이벤트 리스너를 직접 등록
+    document.getElementById('startBtn').addEventListener('click', function() {
+        bgm.play().catch(e => console.log("BGM 재생 대기"));
+        document.getElementById('startScreen').style.display = 'none';
+        balls = [{ x: 240, y: 370, dx: 1.8, dy: -1.8, radius: 8, baseRadius: 8 }];
+        bricks = []; particles = []; score = 0; running = true;
+        lastTime = performance.now();
+        requestAnimationFrame(gameLoop);
+    });
+
+    canvas.addEventListener("mousemove", (e) => { 
+        var rect = canvas.getBoundingClientRect();
+        mouseX = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    });
+
+    function gameLoop(timestamp) {
+        if(!running) return;
+        var deltaTime = (timestamp - lastTime) / 16.67;
+        lastTime = timestamp;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        paddleX = mouseX - paddleWidth/2;
+        ctx.fillStyle = "#34495e";
+        ctx.fillRect(paddleX, 390, paddleWidth, 10);
+
+        if(Math.random() < 0.015) {
+            let type = Math.random() < 0.1 ? 2 : (Math.random() < 0.3 ? 1 : 0);
+            bricks.unshift({ x: Math.random() * 420, y: 0, type: type, speed: 0.5 + Math.random() * 0.5 });
         }
 
-        document.getElementById('startBtn').addEventListener('click', function() {
-            bgm.play().catch(e => console.log("BGM 재생 대기"));
-            document.getElementById('startScreen').style.display = 'none';
-            // 1. 게임 시작 시 이전 게임 상태 초기화 (버그 수정 핵심)
-            balls = [{ x: 240, y: 370, dx: 1.8, dy: -1.8, radius: 8, baseRadius: 8 }];
-            bricks = []; particles = []; score = 0; running = true;
-            lastTime = performance.now();
-            requestAnimationFrame(gameLoop);
-        });
-
-        canvas.addEventListener("mousemove", (e) => { 
-            var rect = canvas.getBoundingClientRect();
-            mouseX = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-        });
-
-        function gameLoop(timestamp) {
-            if(!running) return;
-            var deltaTime = (timestamp - lastTime) / 16.67;
-            lastTime = timestamp;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if(flash > 0) { ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(0,0,480,400); flash--; }
+        let toRemove = [];
+        bricks.forEach((b, i) => {
+            b.y += 1 * b.speed * deltaTime;
+            let color = b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c");
+            ctx.fillStyle = color;
+            ctx.fillRect(b.x, b.y, 50, 20);
             
-            paddleX = mouseX - paddleWidth/2;
-            ctx.fillStyle = "#34495e";
-            ctx.fillRect(paddleX, 390, paddleWidth, 10);
-
-            if(Math.random() < 0.015) {
-                let type = Math.random() < 0.1 ? 2 : (Math.random() < 0.3 ? 1 : 0);
-                if(score >= 50 && Math.random() < 0.1) type = 5; 
-                bricks.unshift({ x: Math.random() * 420, y: 0, type: type, speed: 0.5 + Math.random() * 0.5, passed: false });
-            }
-
-            // 충돌 처리 후 삭제할 인덱스 관리
-            let toRemoveBricks = [];
-            bricks.forEach((b, i) => {
-                b.y += 1 * b.speed * deltaTime;
-                let color = b.type === 5 ? "rgba(52, 152, 219, 0.5)" : (b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c"));
-                ctx.fillStyle = color;
-                ctx.fillRect(b.x, b.y, 50, 20);
-                
-                balls.forEach((ball, j) => {
-                    // 2. 모서리 충돌 판정 보완
-                    let brickXEnd = b.x + 50, brickYEnd = b.y + 20;
-                    let closestX = Math.max(b.x, Math.min(ball.x, brickXEnd));
-                    let closestY = Math.max(b.y, Math.min(ball.y, brickYEnd));
-                    let distanceX = ball.x - closestX;
-                    let distanceY = ball.y - closestY;
-                    let distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
-
-                    // 공 중심이 벽돌 내부에 있거나 반경 이내 모서리 접촉 시
-                    if (distanceSquared <= (ball.radius * ball.radius)) {
-                        if (b.type === 2) { // 검정
-                            bricks = bricks.filter(br => Math.hypot(br.x - b.x, br.y - b.y) > 80);
-                            flash = 10; createParticles(closestX, closestY, "#555");
-                        } else if (b.type === 5) { // 하늘색
-                            if (!b.passed) { ball.dx *= 1.5; b.passed = true; }
-                        } else if (b.type === 1) { // 초록색 (공 추가)
-                            balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8, baseRadius: 8 });
-                            toRemoveBricks.push(i); score++; createParticles(closestX, closestY, color);
-                        } else { // 기본
-                            breakSound.currentTime = 0; breakSound.play().catch(e => {});
-                            ball.dy = -ball.dy; 
-                            toRemoveBricks.push(i); score++; createParticles(closestX, closestY, color);
-                        }
+            balls.forEach(ball => {
+                let closestX = Math.max(b.x, Math.min(ball.x, b.x + 50));
+                let closestY = Math.max(b.y, Math.min(ball.y, b.y + 20));
+                if (((ball.x - closestX)**2 + (ball.y - closestY)**2) <= ball.radius**2) {
+                    if (b.type === 2) { 
+                        bricks = bricks.filter(br => Math.hypot(br.x - b.x, br.y - b.y) > 80);
+                        createParticles(b.x+25, b.y+10, "#555");
+                    } else if (b.type === 1) {
+                        balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8, baseRadius: 8 });
+                        toRemove.push(i); score++; createParticles(b.x+25, b.y+10, color);
+                    } else {
+                        ball.dy = -ball.dy; toRemove.push(i); score++; createParticles(b.x+25, b.y+10, color);
                     }
-                });
-                if(b.y > 400) { running = false; bgm.pause(); alert("Game Over! Score: " + score); location.reload(); }
+                }
             });
-            
-            // 삭제할 블록 인덱스를 역순으로 정렬하여 안전하게 제거
-            toRemoveBricks.sort((a, b) => b - a).forEach(i => bricks.splice(i, 1));
+            if(b.y > 400) { running = false; alert("Game Over! Score: " + score); location.reload(); }
+        });
+        toRemove.sort((a,b) => b-a).forEach(i => bricks.splice(i, 1));
 
-            particles.forEach((p, i) => {
-                p.x += p.dx * deltaTime; p.y += p.dy * deltaTime; p.life -= deltaTime;
-                if (p.life <= 0) particles.splice(i, 1);
-                else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fillStyle = p.color; ctx.fill(); }
-            });
+        particles.forEach((p, i) => {
+            p.x += p.dx; p.y += p.dy; p.life--;
+            if (p.life <= 0) particles.splice(i, 1);
+            else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fillStyle = p.color; ctx.fill(); }
+        });
 
-            balls.forEach((ball, i) => {
-                ball.x += ball.dx * deltaTime; ball.y += ball.dy * deltaTime;
-                if(ball.x > 470 || ball.x < 10) ball.dx = -ball.dx;
-                if(ball.y < 10) ball.dy
+        balls.forEach(ball => {
+            ball.x += ball.dx; ball.y += ball.dy;
+            if(ball.x > 470 || ball.x < 10) ball.dx = -ball.dx;
+            if(ball.y < 10) ball.dy = -ball.dy;
+            if(ball.y > 385 && ball.x > paddleX && ball.x < paddleX + paddleWidth) ball.dy = -Math.abs(ball.dy);
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2); ctx.fillStyle = "gold"; ctx.fill();
+        });
+        ctx.fillStyle = "black"; ctx.fillText("Score: " + score, 10, 20);
+        requestAnimationFrame(gameLoop);
+    }
+</script>
+</body>
+</html>
