@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>벽돌 깨기 - 사운드 통합 버전</title>
+    <title>벽돌 깨기 - 최종 실행 버전</title>
     <style>
         body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         canvas { background: #f0f0f0; border: 4px solid #333; display: block; z-index: 1; }
@@ -30,7 +30,7 @@
         const normalBtn = document.getElementById("normalBtn");
         const extremeBtn = document.getElementById("extremeBtn");
 
-        // [사운드 파일 로드] (파일이 HTML과 같은 폴더에 있어야 합니다)
+        // [소리 추가] 오디오 객체 생성
         const breakSound = new Audio('break.wav');
         const bgm = new Audio('bgm.wav');
         bgm.loop = true;
@@ -38,6 +38,7 @@
         let balls = [], bricks = [], particles = [], score = 0, running = false, paddleX = 190, paddleWidth = 100, blockBaseSpeed = 1.2;
         let gameMode = 'normal';
 
+        // 게임 시작 및 재시작 함수
         function startGame(mode) {
             if (running) return;
             gameMode = mode;
@@ -49,13 +50,14 @@
             blockBaseSpeed = 1.2;
             running = true;
             startScreen.style.display = 'none';
-
-            // [배경음 재생]
-            bgm.play().catch(e => console.log("BGM 재생 대기 중"));
+            
+            // [소리 추가] 게임 시작 시 배경음 재생
+            bgm.play().catch(e => console.log("BGM 재생 대기"));
             
             gameLoop();
         }
 
+        // 버튼 이벤트 연결
         normalBtn.addEventListener('click', () => startGame('normal'));
         extremeBtn.addEventListener('click', () => startGame('extreme'));
 
@@ -74,6 +76,7 @@
             if (!running) return;
             ctx.clearRect(0, 0, 480, 400);
 
+            // [로직] 모드별 속도 분기 (일반: 100점당 0.1 / 극한: 50점당 0.3)
             let increment = (gameMode === 'extreme') ? 0.3 : 0.1;
             let interval = (gameMode === 'extreme') ? 50 : 100;
             blockBaseSpeed = 1.2 + Math.floor(score / interval) * increment;
@@ -89,23 +92,4 @@
             let toRemove = [];
             for (let i = 0; i < bricks.length; i++) {
                 let b = bricks[i];
-                if (b.type === 6) { b.rotAngle += 0.02 * b.speed; b.x = b.center.x + Math.cos(b.rotAngle) * b.rotRadius; b.y = b.center.y + Math.sin(b.rotAngle) * b.rotRadius; }
-                else { b.y += b.speed; }
-                
-                ctx.fillStyle = b.type === 6 ? "orange" : (b.type === 5 ? "#87CEEB" : (b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c")));
-                ctx.fillRect(b.x, b.y, 50, 20);
-
-                balls.forEach(ball => {
-                    let closestX = Math.max(b.x, Math.min(ball.x, b.x + 50));
-                    let closestY = Math.max(b.y, Math.min(ball.y, b.y + 20));
-                    if (Math.hypot(ball.x - closestX, ball.y - closestY) < ball.radius) {
-                        
-                        // [타격음 재생]
-                        breakSound.currentTime = 0;
-                        breakSound.play().catch(e => {});
-
-                        if (b.type === 5) {
-                            ball.radius = Math.max(3, ball.radius - 2);
-                            toRemove.push(i);
-                        } else {
-                            if (Math.abs
+                if (b.type === 6) { b.rotAngle += 0.0
