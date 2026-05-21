@@ -25,8 +25,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         var canvas = document.getElementById("myCanvas"), ctx = canvas.getContext("2d");
         var paddleWidth = 100, paddleX = 190, mouseX = 240, running = false;
-        var balls = [{ x: 240, y: 370, dx: 1.8, dy: -1.8, radius: 8, baseRadius: 8 }];
-        var bricks = [], particles = [], score = 0, lastTime = 0, flash = 0;
+        var balls = [], bricks = [], particles = [], score = 0, lastTime = 0, flash = 0;
 
         var breakSound = new Audio('break.wav');
         var bgm = new Audio('bgm.wav');
@@ -34,14 +33,16 @@
 
         function createParticles(x, y, color) {
             for(let i = 0; i < 15; i++) {
-                particles.push({ x: x, y: y, dx: (Math.random()-0.5)*6, dy: (Math.random()-0.5)*6, radius: Math.random()*2+1, color: color, life: 20 });
+                particles.push({ x, y, dx: (Math.random()-0.5)*6, dy: (Math.random()-0.5)*6, radius: Math.random()*2+1, color, life: 20 });
             }
         }
 
         document.getElementById('startBtn').addEventListener('click', function() {
             bgm.play().catch(e => console.log("BGM 대기"));
             document.getElementById('startScreen').style.display = 'none';
-            running = true;
+            // 게임 시작 시 초기화
+            balls = [{ x: 240, y: 370, dx: 1.8, dy: -1.8, radius: 8, baseRadius: 8 }];
+            bricks = []; score = 0; running = true;
             lastTime = performance.now();
             requestAnimationFrame(gameLoop);
         });
@@ -69,6 +70,8 @@
                 bricks.unshift({ x: Math.random() * 420, y: 0, type: type, speed: 0.5 + Math.random() * 0.5, passed: false });
             }
 
+            // 충돌 처리 후 삭제할 인덱스 관리
+            let toRemove = [];
             bricks.forEach((b, i) => {
                 b.y += 1 * b.speed * deltaTime;
                 let color = b.type === 5 ? "rgba(52, 152, 219, 0.5)" : (b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c"));
@@ -82,34 +85,6 @@
                             flash = 10; createParticles(b.x+25, b.y+10, "#555");
                         } else if(b.type === 5) {
                             if(!b.passed) { ball.dx *= 1.5; b.passed = true; }
-                        } else {
-                            breakSound.currentTime = 0; breakSound.play().catch(e => {});
-                            createParticles(b.x+25, b.y+10, color);
-                            ball.dy = -ball.dy; bricks.splice(i, 1); score++;
-                        }
-                    }
-                });
-                if(b.y > 400) { running = false; bgm.pause(); alert("Game Over! Score: " + score); location.reload(); }
-            });
-
-            particles.forEach((p, i) => {
-                p.x += p.dx * deltaTime; p.y += p.dy * deltaTime; p.life -= deltaTime;
-                if (p.life <= 0) particles.splice(i, 1);
-                else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fillStyle = p.color; ctx.fill(); }
-            });
-
-            balls.forEach((ball, i) => {
-                ball.x += ball.dx * deltaTime; ball.y += ball.dy * deltaTime;
-                if(ball.x > 470 || ball.x < 10) ball.dx = -ball.dx;
-                if(ball.y < 10) ball.dy = -ball.dy;
-                if(ball.y > 385 && ball.x > paddleX && ball.x < paddleX + paddleWidth) ball.dy = -Math.abs(ball.dy);
-                ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2); ctx.fillStyle = "gold"; ctx.fill();
-            });
-
-            ctx.fillStyle = "black"; ctx.fillText("Score: " + score, 10, 20);
-            requestAnimationFrame(gameLoop);
-        }
-    });
-</script>
-</body>
-</html>
+                        } else if(b.type === 1) {
+                            balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8, baseRadius: 8 });
+                            toRemove.push
