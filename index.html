@@ -15,25 +15,15 @@
 
     <script>
         const canvas = document.getElementById("myCanvas"), ctx = canvas.getContext("2d");
-        let balls = [], bricks = [], particles = [], score = 0, running = false;
+        let balls = [], bricks = [], score = 0, running = false;
         let paddleX = 190, paddleWidth = 100;
         const breakSound = new Audio('break.wav');
-        const bgm = new Audio('bgm.wav'); bgm.loop = true;
-
-        // 고정된 하늘색 블록 (50점 이후 활성화)
         const heavyBlock = { x: 190, y: 30, w: 100, h: 20 };
-
-        function createParticles(x, y, color) {
-            for(let i = 0; i < 15; i++) {
-                particles.push({ x, y, dx: (Math.random()-0.5)*6, dy: (Math.random()-0.5)*6, radius: Math.random()*2+1, color, life: 20 });
-            }
-        }
 
         document.getElementById('startScreen').addEventListener('click', function() {
             this.style.display = 'none';
-            bgm.play().catch(e => console.log("BGM 대기"));
-            balls = [{ x: 240, y: 370, dx: 2, dy: -2, radius: 8 }];
-            bricks = []; particles = []; score = 0; running = true;
+            balls = [{ x: 240, y: 100, dx: 2, dy: 3, radius: 8 }]; // 시작 Y값을 낮춰 위에서 시작
+            bricks = []; score = 0; running = true;
             requestAnimationFrame(gameLoop);
         });
 
@@ -46,19 +36,15 @@
             if (!running) return;
             ctx.clearRect(0, 0, 480, 400);
 
-            // 1. 하늘색 블록 (Type 5) 표시
             if (score >= 50) {
                 ctx.fillStyle = "#87CEEB";
                 ctx.fillRect(heavyBlock.x, heavyBlock.y, heavyBlock.w, heavyBlock.h);
             }
 
-            // 2. 일반 블록 생성
             if (Math.random() < 0.02) {
-                let type = Math.random() < 0.1 ? 2 : (Math.random() < 0.3 ? 1 : 0);
-                bricks.push({ x: Math.random() * 420, y: 0, type, speed: 1 });
+                bricks.push({ x: Math.random() * 420, y: 0, type: Math.random() < 0.1 ? 2 : (Math.random() < 0.3 ? 1 : 0), speed: 1.2 });
             }
 
-            // 3. 블록 업데이트 및 충돌
             let toRemove = [];
             bricks.forEach((b, i) => {
                 b.y += b.speed;
@@ -67,43 +53,35 @@
 
                 balls.forEach(ball => {
                     if (ball.x > b.x && ball.x < b.x + 50 && ball.y > b.y && ball.y < b.y + 20) {
-                        if (b.type === 2) { // 검정: 폭발
-                            bricks = bricks.filter(br => Math.hypot(br.x - b.x, br.y - b.y) > 80);
-                            createParticles(b.x+25, b.y+10, "#555");
-                        } else if (b.type === 1) { // 초록: 공 추가
-                            balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8 });
-                            toRemove.push(i); score++; createParticles(b.x+25, b.y+10, "#2ecc71");
-                        } else { // 빨강: 기본
-                            breakSound.currentTime = 0; breakSound.play().catch(e => {});
-                            ball.dy = -ball.dy; toRemove.push(i); score++; createParticles(b.x+25, b.y+10, "#e74c3c");
-                        }
+                        // 현실적인 반사: 블록 중심과 공의 거리에 따라 dx를 다르게 변경
+                        let hitPoint = (ball.x - (b.x + 25)) / 25; 
+                        ball.dx = hitPoint * 4; 
+                        ball.dy = -ball.dy;
+                        toRemove.push(i); score++;
                     }
                 });
             });
             toRemove.sort((a,b) => b-a).forEach(i => bricks.splice(i, 1));
 
-            // 4. 공 이동 및 게임 오버 판정
             balls = balls.filter(ball => {
                 ball.x += ball.dx; ball.y += ball.dy;
 
-                // 하늘색 블록 충돌 (속도 증가)
-                if (score >= 50 && ball.x > heavyBlock.x && ball.x < heavyBlock.x + heavyBlock.w && 
-                    ball.y > heavyBlock.y && ball.y < heavyBlock.y + heavyBlock.h) {
-                    ball.dx *= 1.1; ball.dy *= 1.1; ball.dy = -ball.dy;
-                }
+                // 벽 충돌 시 약간의 튕김 변화
+                if (ball.x < 0 || ball.x > 480) ball.dx *= -1;
+                if (ball.y < 0) ball.dy *= -1;
 
-                if (ball.x < 0 || ball.x > 480) ball.dx = -ball.dx;
-                if (ball.y < 0) ball.dy = -ball.dy;
-                if (ball.y > 385 && ball.x > paddleX && ball.x < paddleX + paddleWidth) ball.dy = -Math.abs(ball.dy);
+                // 패들 충돌 시 굴절 로직 적용
+                if (ball.y > 380 && ball.x > paddleX && ball.x < paddleX + paddleWidth) {
+                    let impact = (ball.x - (paddleX + paddleWidth/2)) / (paddleWidth/2);
+                    ball.dx = impact * 5;
+                    ball.dy = -Math.abs(ball.dy);
+                }
 
                 ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2); ctx.fillStyle = "gold"; ctx.fill();
                 return ball.y < 400;
             });
 
-            if (balls.length === 0) { 
-                running = false; alert("Game Over! Score: " + score); location.reload(); 
-            }
-
+            if (balls.length === 0) { running = false; alert("Game Over! Score: " + score); location.reload(); }
             ctx.fillStyle = "black"; ctx.fillText("Score: " + score, 10, 20);
             ctx.fillStyle = "#34495e"; ctx.fillRect(paddleX, 390, paddleWidth, 10);
             requestAnimationFrame(gameLoop);
