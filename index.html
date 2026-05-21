@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>벽돌 깨기 - 속도 최적화 버전</title>
+    <title>벽돌 깨기 - 최종 정상 작동 버전</title>
     <style>
         body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         canvas { background: #f0f0f0; border: 4px solid #333; display: block; z-index: 1; }
@@ -23,6 +23,7 @@
             const ctx = canvas.getContext("2d");
             const startScreen = document.getElementById("startScreen");
 
+            // 오디오 처리 (오류 방지)
             const loadAudio = (src) => { try { return new Audio(src); } catch(e) { return { play: () => {}, pause: () => {}, currentTime: 0 }; } };
             const breakSound = loadAudio('break.wav');
             const bgm = loadAudio('bgm.wav'); bgm.loop = true;
@@ -60,8 +61,8 @@
             function gameLoop() {
                 if (!running) return;
                 ctx.clearRect(0, 0, 480, 400);
-                
-                // [수정] 속도 증가 로직 완만하게 변경 (100점마다 0.1씩 증가)
+
+                // 공 속도 증가 로직 (100점당 0.1씩 증가 - 완만함)
                 blockBaseSpeed = 1.2 + Math.floor(score / 100) * 0.1;
 
                 if (Math.random() < 0.02) {
@@ -85,7 +86,6 @@
                         let closestX = Math.max(b.x, Math.min(ball.x, b.x + 50));
                         let closestY = Math.max(b.y, Math.min(ball.y, b.y + 20));
                         if (Math.hypot(ball.x - closestX, ball.y - closestY) < ball.radius) {
-                            
                             if (b.type === 5) {
                                 ball.radius = Math.max(3, ball.radius - 2);
                                 toRemove.push(i);
@@ -117,7 +117,7 @@
                     if (ball.y < 0) ball.dy = -ball.dy;
                     
                     if (ball.dy > 0 && ball.y + ball.radius >= 390 && ball.y + ball.radius <= 400 && ball.x > paddleX && ball.x < paddleX + paddleWidth) {
-                        // [수정] 패들 반사 속도 증가율도 완만하게 조정 (200점마다 0.05씩)
+                        // 패들 반사 속도 증가율도 완만하게 조정
                         let mult = 1 + Math.floor(score / 200) * 0.05;
                         ball.dx = ((ball.x - (paddleX + paddleWidth / 2)) / (paddleWidth / 2)) * 5 * mult;
                         ball.dy = -Math.abs(ball.dy) * mult;
