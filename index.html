@@ -121,4 +121,35 @@
                 particles.forEach((p, i) => { p.x += p.dx; p.y += p.dy; p.life--; if (p.life <= 0) particles.splice(i, 1); else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); } });
 
                 let activeBalls = [];
-                balls.forEach
+                balls.forEach(ball => {
+                    ball.x += ball.dx; ball.y += ball.dy;
+                    if (ball.x < 0 || ball.x > 480) ball.dx = -ball.dx;
+                    if (ball.y < 0) ball.dy = -ball.dy;
+                    
+                    if (ball.dy > 0 && ball.y + ball.radius >= 390 && ball.y + ball.radius <= 400 && ball.x > paddleX && ball.x < paddleX + paddleWidth) {
+                        let mult = 1 + Math.floor(score / 50) * 0.1;
+                        ball.dx = ((ball.x - (paddleX + paddleWidth / 2)) / (paddleWidth / 2)) * 5 * mult;
+                        ball.dy = -Math.abs(ball.dy) * mult;
+                        ball.y = 390 - ball.radius;
+                    }
+
+                    if (ball.y < 400) {
+                        activeBalls.push(ball);
+                        ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fillStyle = "gold"; ctx.fill();
+                    }
+                });
+                balls = activeBalls;
+
+                if (balls.length === 0) { 
+                    running = false; bgm.pause();
+                    ctx.fillStyle = "black"; ctx.font = "30px Arial"; ctx.fillText("Game Over! Score: " + score, 100, 200);
+                    setTimeout(() => { alert("Game Over! Score: " + score); startScreen.style.display = 'block'; }, 100);
+                } else { 
+                    ctx.fillStyle = "black"; ctx.font = "16px Arial"; ctx.fillText("Score: " + score, 10, 20); ctx.fillRect(paddleX, 390, paddleWidth, 10); 
+                    requestAnimationFrame(gameLoop); 
+                }
+            }
+        };
+    </script>
+</body>
+</html>
