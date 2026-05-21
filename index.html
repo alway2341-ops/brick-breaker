@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>벽돌 깨기 - 최종 안정화 버전</title>
+    <title>벽돌 깨기 - 최종 안정화</title>
     <style>
         body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         canvas { background: #f0f0f0; border: 4px solid #333; display: block; z-index: 1; }
@@ -31,7 +31,8 @@
 
             function initGame() {
                 score = 0;
-                balls = [{ x: 240, y: 100, dx: 2, dy: 3, radius: 8, stuck: false }];
+                // [수정] 공 초기 상태에 stuck 관련 변수 안전하게 추가
+                balls = [{ x: 240, y: 100, dx: 2, dy: 3, radius: 8, stuck: false, stuckTimer: 0 }];
                 bricks = [];
                 particles = [];
                 paddleX = 190;
@@ -71,7 +72,7 @@
                     else if (r < 0.35) type = 2;
                     else if (r < 0.55) type = 1;
                     
-                    let b = { x: Math.random() * 420, y: 0, type: type, speed: blockBaseSpeed, duration: 0 };
+                    let b = { x: Math.random() * 420, y: 0, type: type, speed: blockBaseSpeed };
                     if (type === 6) { b.rotAngle = 0; b.rotRadius = 50 + Math.random() * 100; b.center = { x: Math.random() * 400 + 40, y: Math.random() * 100 + 30 }; }
                     bricks.push(b);
                 }
@@ -91,14 +92,67 @@
                         let closestY = Math.max(b.y, Math.min(ball.y, b.y + 20));
                         if (Math.hypot(ball.x - closestX, ball.y - closestY) < ball.radius) {
                             
-                            // 하늘색 블록(Type 5) 특수 로직 안정화
+                            // [수정] 하늘색 블록 충돌 로직 개선
                             if (b.type === 5 && !ball.stuck) {
                                 ball.stuck = true;
-                                ball.targetX = b.x + 25;
-                                ball.targetY = b.y + 10;
+                                ball.stuckTimer = 0;
+                                toRemove.push(i); // 블록은 즉시 제거하여 루프 에러 방지
+                                breakSound.currentTime = 0; breakSound.play().catch(e => {});
                             } else if (b.type !== 5) {
                                 if (Math.abs(ball.x - closestX) > Math.abs(ball.y - closestY)) ball.dx = -ball.dx;
                                 else ball.dy = -ball.dy;
                                 
                                 if (b.type === 6) { createParticles(b.x+25, b.y+10, "orange"); score += 5; toRemove.push(i); }
-                                else if (
+                                else if (b.type === 2) { 
+                                    let before = bricks.length;
+                                    bricks = bricks.filter(br => Math.hypot(br.x - b.x, br.y - b.y) > 80);
+                                    score += (before - bricks.length);
+                                    createParticles(b.x+25, b.y+10, "black");
+                                } else if (b.type === 1) { balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8, stuck: false, stuckTimer: 0 }); toRemove.push(i); createParticles(b.x+25, b.y+10, "#2ecc71"); score++; }
+                                else { toRemove.push(i); createParticles(b.x+25, b.y+10, "#e74c3c"); score++; }
+                                breakSound.currentTime = 0; breakSound.play().catch(e => {});
+                            }
+                        }
+                    });
+                }
+                toRemove.sort((a,b) => b-a).forEach(i => bricks.splice(i, 1));
+
+                // 3. 파티클 업데이트
+                particles.forEach((p, i) => { p.x += p.dx; p.y += p.dy; p.life--; if (p.life <= 0) particles.splice(i, 1); else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); } });
+
+                // 4. 공 업데이트
+                let activeBalls = [];
+                balls.forEach(ball => {
+                    // [수정] stuck 로직: 블록이 없어도 공은 그 자리에서 정지 후 점수 획득
+                    if (ball.stuck) {
+                        ball.stuckTimer++;
+                        score += 2;
+                        if (ball.stuckTimer > 40) {
+                            ball.stuck = false;
+                            ball.dx = (Math.random() - 0.5) * 6;
+                            ball.dy = -3;
+                        }
+                    } else {
+                        ball.x += ball.dx; ball.y += ball.dy;
+                        if (ball.x < 0 || ball.x > 480) ball.dx = -ball.dx;
+                        if (ball.y < 0) ball.dy = -ball.dy;
+                        
+                        if (ball.dy > 0 && ball.y + ball.radius >= 390 && ball.y + ball.radius <= 400 && ball.x > paddleX && ball.x < paddleX + paddleWidth) {
+                            let mult = 1 + Math.floor(score / 50) * 0.1;
+                            ball.dx = ((ball.x - (paddleX + paddleWidth / 2)) / (paddleWidth / 2)) * 5 * mult;
+                            ball.dy = -Math.abs(ball.dy) * mult;
+                            ball.y = 390 - ball.radius;
+                        }
+                    }
+
+                    if (ball.y < 400) {
+                        activeBalls.push(ball);
+                        ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fillStyle = "gold"; ctx.fill();
+                    }
+                });
+                balls = activeBalls;
+
+                if (balls.length === 0) { 
+                    running = false; bgm.pause();
+                    ctx.fillStyle = "black"; ctx.font = "30px Arial"; ctx.fillText("Game Over! Score: " + score, 100, 200);
+                    setTimeout(() => { alert("Game Over! Score: " + score); startScreen.style.display = 'block'; }, 100);
