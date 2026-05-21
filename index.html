@@ -32,23 +32,14 @@
         var bgm = new Audio('bgm.wav');
         bgm.loop = true;
 
-        // 파티클 생성 함수
         function createParticles(x, y, color) {
             for(let i = 0; i < 15; i++) {
-                particles.push({
-                    x: x,
-                    y: y,
-                    dx: (Math.random() - 0.5) * 6,
-                    dy: (Math.random() - 0.5) * 6,
-                    radius: Math.random() * 2 + 1,
-                    color: color,
-                    life: Math.random() * 20 + 20
-                });
+                particles.push({ x: x, y: y, dx: (Math.random()-0.5)*6, dy: (Math.random()-0.5)*6, radius: Math.random()*2+1, color: color, life: 20 });
             }
         }
 
         document.getElementById('startBtn').addEventListener('click', function() {
-            bgm.play().catch(e => console.log("BGM 재생 대기"));
+            bgm.play().catch(e => console.log("BGM 대기"));
             document.getElementById('startScreen').style.display = 'none';
             running = true;
             lastTime = performance.now();
@@ -80,12 +71,7 @@
 
             bricks.forEach((b, i) => {
                 b.y += 1 * b.speed * deltaTime;
-                let color;
-                if(b.type === 5) color = "rgba(52, 152, 219, 0.5)";
-                else if(b.type === 2) color = "black";
-                else if(b.type === 1) color = "#2ecc71";
-                else color = "#e74c3c";
-                
+                let color = b.type === 5 ? "rgba(52, 152, 219, 0.5)" : (b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c"));
                 ctx.fillStyle = color;
                 ctx.fillRect(b.x, b.y, 50, 20);
                 
@@ -93,14 +79,12 @@
                     if(ball.x > b.x && ball.x < b.x+50 && ball.y > b.y && ball.y < b.y+20) {
                         if(b.type === 2) { 
                             bricks = bricks.filter(br => Math.hypot(br.x - b.x, br.y - b.y) > 80);
-                            flash = 10;
-                            // 검정 블록 폭발 파티클
-                            createParticles(b.x + 25, b.y + 10, "#555"); 
+                            flash = 10; createParticles(b.x+25, b.y+10, "#555");
                         } else if(b.type === 5) {
                             if(!b.passed) { ball.dx *= 1.5; b.passed = true; }
                         } else {
                             breakSound.currentTime = 0; breakSound.play().catch(e => {});
-                            createParticles(b.x + 25, b.y + 10, color); // 블록 파괴 파티클
+                            createParticles(b.x+25, b.y+10, color);
                             ball.dy = -ball.dy; bricks.splice(i, 1); score++;
                         }
                     }
@@ -108,21 +92,10 @@
                 if(b.y > 400) { running = false; bgm.pause(); alert("Game Over! Score: " + score); location.reload(); }
             });
 
-            // 파티클 업데이트 및 그리기
             particles.forEach((p, i) => {
-                p.x += p.dx * deltaTime;
-                p.y += p.dy * deltaTime;
-                p.life -= deltaTime;
-                if (p.life <= 0) {
-                    particles.splice(i, 1);
-                } else {
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = p.color;
-                    ctx.globalAlpha = p.life / 40; // 서서히 투명해짐
-                    ctx.fill();
-                    ctx.globalAlpha = 1;
-                }
+                p.x += p.dx * deltaTime; p.y += p.dy * deltaTime; p.life -= deltaTime;
+                if (p.life <= 0) particles.splice(i, 1);
+                else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fillStyle = p.color; ctx.fill(); }
             });
 
             balls.forEach((ball, i) => {
