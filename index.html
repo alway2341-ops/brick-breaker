@@ -24,10 +24,10 @@
 <script>
     var canvas = document.getElementById("myCanvas"), ctx = canvas.getContext("2d");
     var paddleWidth = 100, paddleX = 190, mouseX = 240, running = false;
-    var balls = [{ x: 240, y: 370, dx: 1.2, dy: -1.2, radius: 8 }];
+    // [수정됨] 초기 공 속도 상향
+    var balls = [{ x: 240, y: 370, dx: 1.5, dy: -1.5, radius: 8 }];
     var bricks = [], particles = [], score = 0, flash = 0;
     
-    // [난이도 설정] 초반 속도 증가 (0.3 -> 0.5)
     var brickSpeedBase = 0.5; 
 
     function startGame() {
@@ -63,7 +63,6 @@
 
         bricks.forEach((b, i) => {
             b.y += (brickSpeedBase + (score * 0.0005)) * b.speed;
-            
             ctx.fillStyle = b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c");
             ctx.fillRect(b.x, b.y, 50, 20);
             
@@ -82,15 +81,3 @@
             if(ball.y < 10) ball.dy = -ball.dy;
             if(ball.y > 385 && ball.x > paddleX - 5 && ball.x < paddleX + paddleWidth + 5) {
                 ball.dy = -Math.abs(ball.dy);
-                ball.dx = (ball.x - (paddleX + paddleWidth/2)) * 0.15;
-            }
-            if(ball.y > 400) { balls.splice(i, 1); if(balls.length === 0) { running = false; alert("Score: "+score); location.reload(); } }
-            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2); ctx.fillStyle = "gold"; ctx.fill();
-        });
-
-        ctx.fillStyle = "black"; ctx.fillText("Score: " + score, 10, 20);
-        requestAnimationFrame(gameLoop);
-    }
-</script>
-</body>
-</html>
