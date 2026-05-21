@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>벽돌 깨기 최종 완성본</title>
+    <title>벽돌 깨기 안정화 버전</title>
     <style>
         body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
         canvas { background: #f0f0f0; border: 4px solid #333; display: block; }
@@ -10,94 +10,77 @@
     </style>
 </head>
 <body>
-    <div id="startScreen"><h1>클릭하여 시작</h1></div>
+    <div id="startScreen"><h1>클릭하여 게임 시작</h1></div>
     <canvas id="myCanvas" width="480" height="400"></canvas>
 
     <script>
         const canvas = document.getElementById("myCanvas"), ctx = canvas.getContext("2d");
         let balls = [], bricks = [], particles = [], score = 0, running = false;
         let paddleX = 190, paddleWidth = 100;
+        
+        // 오디오 객체 미리 생성 (시작과 동시에 재생하지 않음)
         const breakSound = new Audio('break.wav');
-        const heavyBlock = { x: 190, y: 30, w: 100, h: 20 };
+        const bgm = new Audio('bgm.wav'); bgm.loop = true;
 
-        function createParticles(x, y, color) {
-            for(let i = 0; i < 15; i++) {
-                particles.push({ x, y, dx: (Math.random()-0.5)*6, dy: (Math.random()-0.5)*6, radius: Math.random()*2+1, color, life: 20 });
-            }
-        }
-
-        document.getElementById('startScreen').addEventListener('click', function() {
+        const startScreen = document.getElementById('startScreen');
+        startScreen.addEventListener('click', function() {
             this.style.display = 'none';
+            // 클릭한 직후에만 오디오 재생 시도
+            bgm.play().catch(e => console.log("BGM 재생 대기 중"));
+            
+            // 데이터 초기화
             balls = [{ x: 240, y: 100, dx: 2, dy: 3, radius: 8 }];
             bricks = []; particles = []; score = 0; running = true;
+            
+            // 루프 시작
             requestAnimationFrame(gameLoop);
         });
 
         canvas.addEventListener("mousemove", (e) => { 
             const rect = canvas.getBoundingClientRect();
-            paddleX = (e.clientX - rect.left) - paddleWidth/2;
+            paddleX = Math.max(0, Math.min(480 - paddleWidth, (e.clientX - rect.left) - paddleWidth/2));
         });
 
-        function gameLoop() {
+        function gameLoop(timestamp) {
             if (!running) return;
             ctx.clearRect(0, 0, 480, 400);
 
-            // 1. 하늘색 블록 표시 (50점 이후)
-            if (score >= 50) {
-                ctx.fillStyle = "#87CEEB";
-                ctx.fillRect(heavyBlock.x, heavyBlock.y, heavyBlock.w, heavyBlock.h);
-            }
-
-            // 2. 블록 생성
+            // 1. 블록 생성
             if (Math.random() < 0.02) {
                 let r = Math.random();
                 let type = r < 0.1 ? 2 : (r < 0.3 ? 1 : 0);
                 bricks.push({ x: Math.random() * 420, y: 0, type, speed: 1.2 });
             }
 
-            // 3. 블록 처리
+            // 2. 블록 처리 및 파티클
             let toRemove = [];
             bricks.forEach((b, i) => {
                 b.y += b.speed;
-                let color = b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c");
-                ctx.fillStyle = color;
+                ctx.fillStyle = b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c");
                 ctx.fillRect(b.x, b.y, 50, 20);
 
                 balls.forEach(ball => {
                     let closestX = Math.max(b.x, Math.min(ball.x, b.x + 50));
                     let closestY = Math.max(b.y, Math.min(ball.y, b.y + 20));
-                    let dx = ball.x - closestX, dy = ball.y - closestY;
-                    
-                    if (dx * dx + dy * dy < ball.radius * ball.radius) {
-                        if (b.type === 2) { // 폭발
+                    if (((ball.x - closestX)**2 + (ball.y - closestY)**2) < ball.radius**2) {
+                        if (b.type === 2) { 
                             bricks = bricks.filter(br => Math.hypot(br.x - b.x, br.y - b.y) > 80);
-                            createParticles(b.x+25, b.y+10, "#555");
-                        } else if (b.type === 1) { // 공 추가
+                        } else if (b.type === 1) {
                             balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8 });
-                            toRemove.push(i); score++; createParticles(b.x+25, b.y+10, "#2ecc71");
-                        } else { // 기본
+                            toRemove.push(i);
+                        } else {
                             breakSound.currentTime = 0; breakSound.play().catch(e => {});
-                            ball.dy = -ball.dy; toRemove.push(i); score++; createParticles(b.x+25, b.y+10, color);
+                            ball.dy = -ball.dy; toRemove.push(i);
                         }
+                        score++;
                     }
                 });
             });
             toRemove.sort((a,b) => b-a).forEach(i => bricks.splice(i, 1));
 
-            // 4. 파티클 이동
-            particles.forEach((p, i) => {
-                p.x += p.dx; p.y += p.dy; p.life--;
-                if (p.life <= 0) particles.splice(i, 1);
-                else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fillStyle = p.color; ctx.fill(); }
-            });
-
-            // 5. 공 이동 및 판정
+            // 3. 공 이동 및 판정
             balls = balls.filter(ball => {
                 ball.x += ball.dx; ball.y += ball.dy;
-                if (score >= 50 && ball.x > heavyBlock.x && ball.x < heavyBlock.x + heavyBlock.w && 
-                    ball.y > heavyBlock.y && ball.y < heavyBlock.y + heavyBlock.h) {
-                    ball.dx *= 1.1; ball.dy *= 1.1; ball.dy = -ball.dy;
-                }
                 if (ball.x < 0 || ball.x > 480) ball.dx *= -1;
                 if (ball.y < 0) ball.dy *= -1;
                 if (ball.y > 380 && ball.x > paddleX && ball.x < paddleX + paddleWidth) {
@@ -109,9 +92,16 @@
                 return ball.y < 400;
             });
 
-            if (balls.length === 0) { running = false; alert("Game Over! Score: " + score); location.reload(); }
+            // 게임 오버 조건
+            if (balls.length === 0) { 
+                running = false; 
+                setTimeout(() => { alert("Game Over! Score: " + score); location.reload(); }, 200);
+            }
+
             ctx.fillStyle = "black"; ctx.fillText("Score: " + score, 10, 20);
             ctx.fillStyle = "#34495e"; ctx.fillRect(paddleX, 390, paddleWidth, 10);
             requestAnimationFrame(gameLoop);
         }
-    </script
+    </script>
+</body>
+</html>
