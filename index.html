@@ -16,23 +16,23 @@
     <script>
         const canvas = document.getElementById("myCanvas");
         const ctx = canvas.getContext("2d");
-        
-        // 오디오 로드 및 자동 프리로드
         const breakSound = new Audio('break.wav');
-        const bgm = new Audio('bgm.wav');
-        bgm.loop = true;
+        const bgm = new Audio('bgm.wav'); bgm.loop = true;
 
-        let balls = [], bricks = [], score = 0, running = false;
+        let balls = [], bricks = [], particles = [], score = 0, running = false;
         let paddleX = 190, paddleWidth = 100;
-        const heavyBlock = { x: 190, y: 30, w: 100, h: 20 };
+
+        function createParticles(x, y, color) {
+            for(let i = 0; i < 15; i++) {
+                particles.push({ x, y, dx: (Math.random()-0.5)*6, dy: (Math.random()-0.5)*6, radius: 2, color, life: 20 });
+            }
+        }
 
         document.getElementById('startScreen').addEventListener('click', function() {
             this.style.display = 'none';
-            // 사용자 상호작용 후 오디오 강제 재생
-            bgm.play().catch(e => console.log("BGM 재생 대기"));
-            
+            bgm.play().catch(e => {});
             balls = [{ x: 240, y: 100, dx: 2, dy: 3, radius: 8 }];
-            bricks = []; score = 0; running = true;
+            bricks = []; particles = []; score = 0; running = true;
             requestAnimationFrame(gameLoop);
         });
 
@@ -45,57 +45,65 @@
             if (!running) return;
             ctx.clearRect(0, 0, 480, 400);
 
-            // 1. 점수 50점 이상 시 하늘색 블록 고정 생성
-            if (score >= 50) {
-                ctx.fillStyle = "#87CEEB";
-                ctx.fillRect(heavyBlock.x, heavyBlock.y, heavyBlock.w, heavyBlock.h);
-            }
-
-            // 2. 일반 블록 생성
+            // 1. 블록 생성
             if (Math.random() < 0.02) {
-                bricks.push({ x: Math.random() * 420, y: 0, type: Math.floor(Math.random() * 3), speed: 1.2 });
+                let r = Math.random();
+                let type = (score >= 50 && r < 0.1) ? 5 : (r < 0.2 ? 2 : (r < 0.4 ? 1 : 0));
+                bricks.push({ x: Math.random() * 420, y: 0, type, speed: 1.2 });
             }
 
-            // 3. 충돌 로직
+            // 2. 블록 이동 및 충돌
             let toRemove = [];
             bricks.forEach((b, i) => {
                 b.y += b.speed;
-                ctx.fillStyle = b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c");
+                ctx.fillStyle = b.type === 5 ? "#87CEEB" : (b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c"));
                 ctx.fillRect(b.x, b.y, 50, 20);
 
                 balls.forEach(ball => {
                     if (ball.x > b.x && ball.x < b.x + 50 && ball.y > b.y && ball.y < b.y + 20) {
-                        breakSound.currentTime = 0;
-                        breakSound.play().catch(e => {});
-                        ball.dy = -ball.dy;
-                        toRemove.push(i);
-                        score++;
+                        if (b.type === 5) { // 하늘색: 무작위 튕김
+                            ball.dx = (Math.random() - 0.5) * 10;
+                            ball.dy = -ball.dy;
+                        } else if (b.type === 2) { // 검정: 원형 범위 파괴
+                            bricks = bricks.filter(br => Math.hypot(br.x - b.x, br.y - b.y) > 80);
+                            createParticles(b.x+25, b.y+10, "#555");
+                        } else if (b.type === 1) { // 초록: 공 추가
+                            balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8 });
+                            toRemove.push(i); createParticles(b.x+25, b.y+10, "#2ecc71");
+                        } else { // 기본: 점수
+                            ball.dy = -ball.dy; toRemove.push(i); createParticles(b.x+25, b.y+10, "#e74c3c");
+                        }
+                        if (b.type !== 2) score++;
+                        breakSound.currentTime = 0; breakSound.play().catch(e => {});
                     }
                 });
             });
             toRemove.sort((a,b) => b-a).forEach(i => bricks.splice(i, 1));
 
-            // 4. 공 및 하늘색 블록 판정
+            // 3. 파티클 및 공 로직
+            particles.forEach((p, i) => {
+                p.x += p.dx; p.y += p.dy; p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+                else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fillStyle = p.color; ctx.fill(); }
+            });
+
             balls = balls.filter(ball => {
                 ball.x += ball.dx; ball.y += ball.dy;
-                
-                // 하늘색 블록 충돌 (속도 증가)
-                if (score >= 50 && ball.x > heavyBlock.x && ball.x < heavyBlock.x + heavyBlock.w && 
-                    ball.y > heavyBlock.y && ball.y < heavyBlock.y + heavyBlock.h) {
-                    ball.dx *= 1.1; ball.dy *= 1.1; ball.dy = -ball.dy;
-                }
-
                 if (ball.x < 0 || ball.x > 480) ball.dx *= -1;
                 if (ball.y < 0) ball.dy *= -1;
                 if (ball.y > 380 && ball.x > paddleX && ball.x < paddleX + paddleWidth) {
+                    ball.dx = ((ball.x - (paddleX + paddleWidth/2)) / (paddleWidth/2)) * 5;
                     ball.dy = -Math.abs(ball.dy);
-                    ball.y = 380;
                 }
                 ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2); ctx.fillStyle = "gold"; ctx.fill();
                 return ball.y < 400;
             });
 
-            if (balls.length === 0) { running = false; bgm.pause(); alert("Game Over! Score: " + score); location.reload(); }
-
+            if (balls.length === 0) { running = false; alert("Game Over! Score: " + score); location.reload(); }
             ctx.fillStyle = "black"; ctx.fillText("Score: " + score, 10, 20);
-            ctx.fillStyle = "#34495e"; ctx.fillRect(paddleX,
+            ctx.fillRect(paddleX, 390, paddleWidth, 10);
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
