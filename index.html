@@ -2,80 +2,76 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>벽돌 깨기 게임</title>
     <style>
-        body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
-        #gameContainer { position: relative; width: 100vw; max-width: 480px; height: 400px; }
-        canvas { background: #f0f0f0; border: 4px solid #333; display: block; width: 100%; height: 100%; cursor: none; }
-        #startScreen { position: absolute; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 10; }
-        button { padding: 15px 30px; font-size: 20px; cursor: pointer; border-radius: 8px; border: none; }
+        canvas { background: #f0f0f0; display: block; margin: 0 auto; border: 4px solid #333; cursor: none; }
+        body { background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
     </style>
 </head>
 <body>
-<div id="gameContainer">
-    <canvas id="myCanvas" width="480" height="400"></canvas>
-    <div id="startScreen">
-        <h1>벽돌 깨기</h1>
-        <button onclick="startGame()">게임 시작</button>
-    </div>
-</div>
-
+<canvas id="myCanvas" width="480" height="400"></canvas>
 <script>
     var canvas = document.getElementById("myCanvas"), ctx = canvas.getContext("2d");
-    var paddleWidth = 100, paddleX = 190, mouseX = 240, running = false;
+    var paddleWidth = 100, paddleX = 190, mouseX = 240, running = true;
     var balls = [{ x: 240, y: 370, dx: 1.8, dy: -1.8, radius: 8, baseRadius: 8 }];
-    var bricks = [], particles = [], score = 0, lastTime = 0;
-
-    const breakSound = new Audio('break.wav');
-    const bgm = new Audio('bgm.wav');
-    bgm.loop = true; bgm.volume = 0.5;
-
-    function startGame() {
-        breakSound.load();
-        bgm.play().catch(e => console.log("BGM 재생 대기"));
-        document.getElementById('startScreen').style.display = 'none';
-        running = true;
-        lastTime = performance.now();
-        requestAnimationFrame(gameLoop);
-    }
+    var bricks = [], score = 0, lastTime = performance.now();
 
     function movePaddle(e) {
         var rect = canvas.getBoundingClientRect();
-        var clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        mouseX = clientX - rect.left;
+        mouseX = (e.clientX || e.touches[0].clientX) - rect.left;
     }
     canvas.addEventListener("mousemove", movePaddle);
     canvas.addEventListener("touchmove", movePaddle, { passive: false });
 
     function gameLoop(timestamp) {
-        if(!running) return;
         var deltaTime = (timestamp - lastTime) / 16.67;
         lastTime = timestamp;
+        ctx.clearRect(0, 0, 480, 400);
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        paddleX = mouseX - paddleWidth/2;
+        paddleX = mouseX - paddleWidth / 2;
         ctx.fillStyle = "#34495e";
-        // 변수명 통일: paddleWidth 사용
         ctx.fillRect(paddleX, 390, paddleWidth, 10);
 
-        if(Math.random() < 0.015) {
-            let type = Math.random() < 0.1 ? 2 : (Math.random() < 0.3 ? 1 : 0);
-            if(score >= 100 && Math.random() < 0.1) type = 4;
-            else if(score >= 50 && Math.random() < 0.1) type = 3;
+        if (Math.random() < 0.015) {
+            let type = Math.random() < 0.1 ? 4 : (Math.random() < 0.3 ? 3 : 0);
             bricks.unshift({ x: Math.random() * 420, y: 0, type: type, speed: 0.5 + Math.random() * 0.5, passed: false });
         }
 
         bricks.forEach((b, i) => {
             b.y += 1 * b.speed * deltaTime;
-            if(b.type === 4) ctx.fillStyle = "rgba(231, 76, 60, 0.5)"; 
-            else if(b.type === 3) ctx.fillStyle = "#3498db"; 
-            else if(b.type === 2) ctx.fillStyle = "black";
-            else if(b.type === 1) ctx.fillStyle = "#2ecc71";
-            else ctx.fillStyle = "#e74c3c";
+            ctx.fillStyle = (b.type === 4) ? "rgba(231, 76, 60, 0.5)" : (b.type === 3 ? "#3498db" : "#e74c3c");
             ctx.fillRect(b.x, b.y, 50, 20);
-            
+
             balls.forEach(ball => {
-                if(ball.x > b.x && ball.x < b.x+50 && ball.y > b.y && ball.y < b.y+20) {
-                    if(b.type === 4) { if(!b.passed
+                if (ball.x > b.x && ball.x < b.x + 50 && ball.y > b.y && ball.y < b.y + 20) {
+                    if (b.type === 4) { if (!b.passed) { ball.dx *= 1.5; b.passed = true; } }
+                    else {
+                        if (b.type === 3) {
+                            balls.forEach(b => b.radius = 4);
+                            setTimeout(() => balls.forEach(b => b.radius = b.baseRadius), 3000);
+                        }
+                        bricks.splice(i, 1); score++;
+                    }
+                }
+            });
+            if (b.y > 400) { alert("Game Over! Score: " + score); location.reload(); }
+        });
+
+        balls.forEach((ball, i) => {
+            ball.x += ball.dx * deltaTime;
+            ball.y += ball.dy * deltaTime;
+            if (ball.x > 470 || ball.x < 10) ball.dx *= -1;
+            if (ball.y < 10) ball.dy *= -1;
+            if (ball.y > 385 && ball.x > paddleX && ball.x < paddleX + paddleWidth) ball.dy = -Math.abs(ball.dy);
+            
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fillStyle = "gold"; ctx.fill();
+            if (ball.y > 450) { balls.splice(i, 1); if(balls.length === 0) location.reload(); }
+        });
+
+        ctx.fillStyle = "black"; ctx.fillText("Score: " + score, 10, 20);
+        requestAnimationFrame(gameLoop);
+    }
+    requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
