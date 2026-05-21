@@ -27,8 +27,8 @@
     var balls = [{ x: 240, y: 370, dx: 1.2, dy: -1.2, radius: 8 }];
     var bricks = [], particles = [], score = 0, flash = 0;
     
-    // [난이도 설정]
-    var brickSpeedBase = 0.3; 
+    // [난이도 설정] 초반 속도 증가 (0.3 -> 0.5)
+    var brickSpeedBase = 0.5; 
 
     function startGame() {
         document.getElementById('startScreen').style.display = 'none';
@@ -36,7 +36,6 @@
         gameLoop();
     }
 
-    // 마우스 및 터치 이벤트 통합
     function movePaddle(e) {
         var rect = canvas.getBoundingClientRect();
         var clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -53,24 +52,21 @@
         ctx.fillStyle = "#34495e";
         ctx.fillRect(paddleX, 390, paddleWidth, 10);
 
-        // [벽돌 생성 로직 - 개별 속도 부여]
         if(Math.random() < 0.015) {
             bricks.unshift({ 
                 x: Math.random() * 420, 
                 y: 0, 
                 type: Math.random() < 0.1 ? 2 : (Math.random() < 0.3 ? 1 : 0),
-                speed: 0.2 + Math.random() * 0.6 // 0.2 ~ 0.8 사이 랜덤 속도
+                speed: 0.2 + Math.random() * 0.6 
             });
         }
 
         bricks.forEach((b, i) => {
-            // 전체 점수에 따른 가속 + 개별 속도 적용
             b.y += (brickSpeedBase + (score * 0.0005)) * b.speed;
             
             ctx.fillStyle = b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c");
             ctx.fillRect(b.x, b.y, 50, 20);
             
-            // ... 충돌 및 나머지 로직은 동일 ...
             balls.forEach(ball => {
                 if(ball.x > b.x && ball.x < b.x+50 && ball.y > b.y && ball.y < b.y+20) {
                     ball.dy = -ball.dy; bricks.splice(i, 1); score++;
@@ -79,7 +75,20 @@
             if(b.y > 400) { running = false; alert("Game Over! Score: " + score); location.reload(); }
         });
 
-        // (이하 중략: 볼 로직 및 그리기)
+        balls.forEach((ball, i) => {
+            ball.x += ball.dx * (1 + score * 0.005);
+            ball.y += ball.dy * (1 + score * 0.005);
+            if(ball.x > 470 || ball.x < 10) ball.dx = -ball.dx;
+            if(ball.y < 10) ball.dy = -ball.dy;
+            if(ball.y > 385 && ball.x > paddleX - 5 && ball.x < paddleX + paddleWidth + 5) {
+                ball.dy = -Math.abs(ball.dy);
+                ball.dx = (ball.x - (paddleX + paddleWidth/2)) * 0.15;
+            }
+            if(ball.y > 400) { balls.splice(i, 1); if(balls.length === 0) { running = false; alert("Score: "+score); location.reload(); } }
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2); ctx.fillStyle = "gold"; ctx.fill();
+        });
+
+        ctx.fillStyle = "black"; ctx.fillText("Score: " + score, 10, 20);
         requestAnimationFrame(gameLoop);
     }
 </script>
