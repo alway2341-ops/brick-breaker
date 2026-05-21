@@ -78,8 +78,4 @@
             
             balls.forEach(ball => {
                 if(ball.x > b.x && ball.x < b.x+50 && ball.y > b.y && ball.y < b.y+20) {
-                    if(b.type === 4) { if(!b.passed) { ball.dx *= 1.5; b.passed = true; } }
-                    else {
-                        if(b.type === 3) {
-                            balls.forEach(ball => ball.radius = 4);
-                            setTimeout(()
+                    if(b.type === 4) { if(!b.passed
