@@ -30,15 +30,12 @@
         const normalBtn = document.getElementById("normalBtn");
         const extremeBtn = document.getElementById("extremeBtn");
 
-        // 오디오 객체 생성
-        const breakSound = new Audio(); // 실제 파일이 없어도 오류 나지 않도록 처리
-        const bgm = new Audio();
-        
         let balls = [], bricks = [], particles = [], score = 0, running = false, paddleX = 190, paddleWidth = 100, blockBaseSpeed = 1.2;
         let gameMode = 'normal';
 
-        // 게임 시작 로직
+        // 게임 시작 및 재시작 함수
         function startGame(mode) {
+            if (running) return;
             gameMode = mode;
             score = 0;
             balls = [{ x: 240, y: 100, dx: 2, dy: 3, radius: 8 }];
@@ -51,6 +48,7 @@
             gameLoop();
         }
 
+        // 버튼 이벤트 연결
         normalBtn.addEventListener('click', () => startGame('normal'));
         extremeBtn.addEventListener('click', () => startGame('extreme'));
 
@@ -69,7 +67,7 @@
             if (!running) return;
             ctx.clearRect(0, 0, 480, 400);
 
-            // [속도 분기 로직]
+            // [로직] 모드별 속도 분기 (일반: 100점당 0.1 / 극한: 50점당 0.3)
             let increment = (gameMode === 'extreme') ? 0.3 : 0.1;
             let interval = (gameMode === 'extreme') ? 50 : 100;
             blockBaseSpeed = 1.2 + Math.floor(score / interval) * increment;
