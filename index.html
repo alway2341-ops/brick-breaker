@@ -25,16 +25,14 @@
     var canvas = document.getElementById("myCanvas"), ctx = canvas.getContext("2d");
     var paddleWidth = 100, paddleX = 190, mouseX = 240, running = false;
     var balls = [{ x: 240, y: 370, dx: 1.8, dy: -1.8, radius: 8, baseRadius: 8 }];
-    var bricks = [], particles = [], score = 0, flash = 0;
-    var brickSpeedBase = 0.5; 
+    var bricks = [], score = 0;
     var lastTime = 0;
 
-    const breakSound = new Audio('break.wav');
-    const bgm = new Audio('bgm.wav');
-    bgm.loop = true; bgm.volume = 0.5;
+    var breakSound = new Audio('break.wav');
+    var bgm = new Audio('bgm.wav');
+    bgm.loop = true;
 
     function startGame() {
-        breakSound.load();
         bgm.play().catch(e => console.log("BGM 재생 대기"));
         document.getElementById('startScreen').style.display = 'none';
         running = true;
@@ -52,27 +50,22 @@
 
     function gameLoop(timestamp) {
         if(!running) return;
-        
         var deltaTime = (timestamp - lastTime) / 16.67;
         lastTime = timestamp;
-
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if(flash > 0) { ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height); flash--; }
         
         paddleX = mouseX - paddleWidth/2;
         ctx.fillStyle = "#34495e";
         ctx.fillRect(paddleX, 390, paddleWidth, 10);
 
         if(Math.random() < 0.015) {
-            let type = Math.random() < 0.1 ? 2 : (Math.random() < 0.3 ? 1 : 0); // 0:빨강, 1:초록, 2:검정
-            if(score >= 100 && Math.random() < 0.1) type = 5; // 하늘색(투과/가속)
+            let type = Math.random() < 0.1 ? 2 : (Math.random() < 0.3 ? 1 : 0);
+            if(score >= 50 && Math.random() < 0.1) type = 5;
             bricks.unshift({ x: Math.random() * 420, y: 0, type: type, speed: 0.5 + Math.random() * 0.5, passed: false });
         }
 
-        particles.forEach((p, i) => { p.x += p.dx * deltaTime; p.y += p.dy * deltaTime; p.life--; ctx.fillStyle="red"; ctx.fillRect(p.x, p.y, 3, 3); if(p.life <= 0) particles.splice(i, 1); });
-
         bricks.forEach((b, i) => {
-            b.y += (brickSpeedBase + (score * 0.0005)) * b.speed * deltaTime;
-            
-            // 색상 지정
-            if(b.type === 5) ctx.fillStyle = "rgba(52, 152, 219, 0.5)"; // 반투명 하늘색
+            b.y += 1 * b.speed * deltaTime;
+            if(b.type === 5) ctx.fillStyle = "rgba(52, 152, 219, 0.5)";
+            else if(b.type === 2) ctx.fillStyle = "black";
+            else if(b
