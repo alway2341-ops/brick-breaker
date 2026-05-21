@@ -33,16 +33,16 @@
 
         function createParticles(x, y, color) {
             for(let i = 0; i < 15; i++) {
-                particles.push({ x, y, dx: (Math.random()-0.5)*6, dy: (Math.random()-0.5)*6, radius: Math.random()*2+1, color, life: 20 });
+                particles.push({ x: x, y: y, dx: (Math.random()-0.5)*6, dy: (Math.random()-0.5)*6, radius: Math.random()*2+1, color: color, life: 20 });
             }
         }
 
         document.getElementById('startBtn').addEventListener('click', function() {
-            bgm.play().catch(e => console.log("BGM 대기"));
+            bgm.play().catch(e => console.log("BGM 재생 대기"));
             document.getElementById('startScreen').style.display = 'none';
-            // 게임 시작 시 초기화
+            // 1. 게임 시작 시 이전 게임 상태 초기화 (버그 수정 핵심)
             balls = [{ x: 240, y: 370, dx: 1.8, dy: -1.8, radius: 8, baseRadius: 8 }];
-            bricks = []; score = 0; running = true;
+            bricks = []; particles = []; score = 0; running = true;
             lastTime = performance.now();
             requestAnimationFrame(gameLoop);
         });
@@ -71,20 +71,52 @@
             }
 
             // 충돌 처리 후 삭제할 인덱스 관리
-            let toRemove = [];
+            let toRemoveBricks = [];
             bricks.forEach((b, i) => {
                 b.y += 1 * b.speed * deltaTime;
                 let color = b.type === 5 ? "rgba(52, 152, 219, 0.5)" : (b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c"));
                 ctx.fillStyle = color;
                 ctx.fillRect(b.x, b.y, 50, 20);
                 
-                balls.forEach(ball => {
-                    if(ball.x > b.x && ball.x < b.x+50 && ball.y > b.y && ball.y < b.y+20) {
-                        if(b.type === 2) { 
+                balls.forEach((ball, j) => {
+                    // 2. 모서리 충돌 판정 보완
+                    let brickXEnd = b.x + 50, brickYEnd = b.y + 20;
+                    let closestX = Math.max(b.x, Math.min(ball.x, brickXEnd));
+                    let closestY = Math.max(b.y, Math.min(ball.y, brickYEnd));
+                    let distanceX = ball.x - closestX;
+                    let distanceY = ball.y - closestY;
+                    let distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
+
+                    // 공 중심이 벽돌 내부에 있거나 반경 이내 모서리 접촉 시
+                    if (distanceSquared <= (ball.radius * ball.radius)) {
+                        if (b.type === 2) { // 검정
                             bricks = bricks.filter(br => Math.hypot(br.x - b.x, br.y - b.y) > 80);
-                            flash = 10; createParticles(b.x+25, b.y+10, "#555");
-                        } else if(b.type === 5) {
-                            if(!b.passed) { ball.dx *= 1.5; b.passed = true; }
-                        } else if(b.type === 1) {
+                            flash = 10; createParticles(closestX, closestY, "#555");
+                        } else if (b.type === 5) { // 하늘색
+                            if (!b.passed) { ball.dx *= 1.5; b.passed = true; }
+                        } else if (b.type === 1) { // 초록색 (공 추가)
                             balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8, baseRadius: 8 });
-                            toRemove.push
+                            toRemoveBricks.push(i); score++; createParticles(closestX, closestY, color);
+                        } else { // 기본
+                            breakSound.currentTime = 0; breakSound.play().catch(e => {});
+                            ball.dy = -ball.dy; 
+                            toRemoveBricks.push(i); score++; createParticles(closestX, closestY, color);
+                        }
+                    }
+                });
+                if(b.y > 400) { running = false; bgm.pause(); alert("Game Over! Score: " + score); location.reload(); }
+            });
+            
+            // 삭제할 블록 인덱스를 역순으로 정렬하여 안전하게 제거
+            toRemoveBricks.sort((a, b) => b - a).forEach(i => bricks.splice(i, 1));
+
+            particles.forEach((p, i) => {
+                p.x += p.dx * deltaTime; p.y += p.dy * deltaTime; p.life -= deltaTime;
+                if (p.life <= 0) particles.splice(i, 1);
+                else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fillStyle = p.color; ctx.fill(); }
+            });
+
+            balls.forEach((ball, i) => {
+                ball.x += ball.dx * deltaTime; ball.y += ball.dy * deltaTime;
+                if(ball.x > 470 || ball.x < 10) ball.dx = -ball.dx;
+                if(ball.y < 10) ball.dy
