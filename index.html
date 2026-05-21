@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>최종 완성 벽돌 깨기</title>
+    <title>벽돌 깨기 - 완전 복구 버전</title>
     <style>
         body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         canvas { background: #f0f0f0; border: 4px solid #333; display: block; z-index: 1; }
@@ -14,9 +14,7 @@
     </style>
 </head>
 <body>
-    <div id="startScreen">
-        <h1>클릭하여 게임 시작</h1>
-    </div>
+    <div id="startScreen"><h1>클릭하여 게임 시작</h1></div>
     <canvas id="myCanvas" width="480" height="400"></canvas>
 
     <script>
@@ -25,10 +23,7 @@
             const ctx = canvas.getContext("2d");
             const startScreen = document.getElementById("startScreen");
 
-            // [오디오 유지] GitHub 배포 시 경로 주의 (break.wav, bgm.wav가 html과 같은 폴더에 있어야 함)
-            const loadAudio = (src) => {
-                try { return new Audio(src); } catch(e) { return { play: () => {}, pause: () => {}, currentTime: 0 }; }
-            };
+            const loadAudio = (src) => { try { return new Audio(src); } catch(e) { return { play: () => {}, pause: () => {}, currentTime: 0 }; } };
             const breakSound = loadAudio('break.wav');
             const bgm = loadAudio('bgm.wav'); bgm.loop = true;
 
@@ -56,7 +51,6 @@
                 paddleX = Math.max(0, Math.min(480 - paddleWidth, (e.clientX - rect.left) - paddleWidth / 2));
             });
 
-            // [복구] 파티클 생성 함수
             function createParticles(x, y, color) {
                 for(let i = 0; i < 15; i++) {
                     particles.push({ x, y, dx: (Math.random()-0.5)*6, dy: (Math.random()-0.5)*6, radius: 2, color, life: 20 });
@@ -65,40 +59,26 @@
 
             function gameLoop() {
                 if (!running) return;
-                
                 ctx.clearRect(0, 0, 480, 400);
-
-                // 속도 가속 단위 (50점)
                 blockBaseSpeed = 1.2 + Math.floor(score / 50) * 0.3;
 
-                // 1. 블록 생성
+                // 1. 블록 생성 로직 (모든 타입 포함)
                 if (Math.random() < 0.02) {
                     let r = Math.random();
-                    // [복구 및 수정] 특수 블록 생성 로직 완벽 복구
-                    // - 주황색(6): 300점 이상, 5% 확률 (회전 블록)
-                    // - 하늘색(5): 15% 확률 (공 속도 변화)
-                    // - 검은색(2): 25% 확률 (폭발 블록)
-                    // - 초록색(1): 45% 확률 (공 복제 블록)
-                    // - 빨간색(0): 그 외 확률 (일반 블록)
-                    let type = 0;
-                    if (score >= 300 && r < 0.05) type = 6;
-                    else if (r < 0.15) type = 5;
-                    else if (r < 0.25) type = 2;
-                    else if (r < 0.45) type = 1;
-                    
+                    let type = (score >= 300 && r < 0.05) ? 6 : (r < 0.15 ? 5 : (r < 0.25 ? 2 : (r < 0.45 ? 1 : 0)));
                     let b = { x: Math.random() * 420, y: 0, type: type, speed: blockBaseSpeed };
                     if (type === 6) { b.rotAngle = 0; b.rotRadius = 50 + Math.random() * 100; b.center = { x: Math.random() * 400 + 40, y: Math.random() * 100 + 30 }; }
                     bricks.push(b);
                 }
 
-                // 2. 블록 업데이트 및 충돌
+                // 2. 블록 이동 및 충돌 (모든 색상 복구)
                 let toRemove = [];
                 for (let i = 0; i < bricks.length; i++) {
                     let b = bricks[i];
                     if (b.type === 6) { b.rotAngle += 0.02 * b.speed; b.x = b.center.x + Math.cos(b.rotAngle) * b.rotRadius; b.y = b.center.y + Math.sin(b.rotAngle) * b.rotRadius; }
                     else { b.y += b.speed; }
                     
-                    // [복구 및 수정] 블록 색상 완벽 복구 (회전 블록은 주황색)
+                    // 색상 매핑: 6:주황, 5:하늘, 2:검정, 1:초록, 0:빨강
                     ctx.fillStyle = b.type === 6 ? "orange" : (b.type === 5 ? "#87CEEB" : (b.type === 2 ? "black" : (b.type === 1 ? "#2ecc71" : "#e74c3c")));
                     ctx.fillRect(b.x, b.y, 50, 20);
 
@@ -109,16 +89,16 @@
                             if (Math.abs(ball.x - closestX) > Math.abs(ball.y - closestY)) ball.dx = -ball.dx;
                             else ball.dy = -ball.dy;
                             
-                            // [복구 및 수정] 특수 블록 충돌 효과 완벽 복구 (파티클, 사운드 포함)
-                            if (b.type === 6) { createParticles(b.x + 25, b.y + 10, "orange"); score += 5; toRemove.push(i); }
-                            else if (b.type === 5) ball.dx = (Math.random() - 0.5) * 10;
+                            // 타입별 효과 복구
+                            if (b.type === 6) { createParticles(b.x+25, b.y+10, "orange"); score += 5; toRemove.push(i); }
+                            else if (b.type === 5) { ball.dx = (Math.random()-0.5)*10; createParticles(b.x+25, b.y+10, "#87CEEB"); }
                             else if (b.type === 2) { 
                                 let before = bricks.length;
                                 bricks = bricks.filter(br => Math.hypot(br.x - b.x, br.y - b.y) > 80);
                                 score += (before - bricks.length);
-                                createParticles(b.x + 25, b.y + 10, "#555");
-                            } else if (b.type === 1) { balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8 }); toRemove.push(i); createParticles(b.x + 25, b.y + 10, "#2ecc71"); score++; }
-                            else { toRemove.push(i); createParticles(b.x + 25, b.y + 10, "#e74c3c"); score++; }
+                                createParticles(b.x+25, b.y+10, "black");
+                            } else if (b.type === 1) { balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8 }); toRemove.push(i); createParticles(b.x+25, b.y+10, "#2ecc71"); score++; }
+                            else { toRemove.push(i); createParticles(b.x+25, b.y+10, "#e74c3c"); score++; }
                             
                             breakSound.currentTime = 0; breakSound.play().catch(e => {});
                         }
@@ -126,23 +106,16 @@
                 }
                 toRemove.sort((a,b) => b-a).forEach(i => bricks.splice(i, 1));
 
-                // 3. 파티클 업데이트 [복구]
-                particles.forEach((p, i) => { 
-                    p.x += p.dx; p.y += p.dy; p.life--; 
-                    if (p.life <= 0) particles.splice(i, 1); 
-                    else { 
-                        ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); 
-                    } 
-                });
+                // 3. 파티클 업데이트
+                particles.forEach((p, i) => { p.x += p.dx; p.y += p.dy; p.life--; if (p.life <= 0) particles.splice(i, 1); else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); } });
 
-                // 4. 공 업데이트 및 패들 충돌
+                // 4. 공 업데이트 (Gold 색상 고정)
                 let activeBalls = [];
                 balls.forEach(ball => {
                     ball.x += ball.dx; ball.y += ball.dy;
                     if (ball.x < 0 || ball.x > 480) ball.dx = -ball.dx;
                     if (ball.y < 0) ball.dy = -ball.dy;
                     
-                    // 패들 충돌 (정밀 좌표)
                     if (ball.dy > 0 && ball.y + ball.radius >= 390 && ball.y + ball.radius <= 400 && ball.x > paddleX && ball.x < paddleX + paddleWidth) {
                         let mult = 1 + Math.floor(score / 50) * 0.1;
                         ball.dx = ((ball.x - (paddleX + paddleWidth / 2)) / (paddleWidth / 2)) * 5 * mult;
@@ -150,34 +123,6 @@
                         ball.y = 390 - ball.radius;
                     }
 
-                    // 공 삭제 판정 기준 (패들 아래 400px)
                     if (ball.y < 400) {
                         activeBalls.push(ball);
-                        // [유지] 노란색 공 ("gold")
-                        ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fillStyle = "gold"; ctx.fill();
-                    }
-                });
-                balls = activeBalls;
-
-                // 게임 오버 판정 및 점수 표시
-                if (balls.length === 0) { 
-                    running = false; 
-                    bgm.pause();
-                    ctx.fillStyle = "black";
-                    ctx.font = "30px Arial";
-                    ctx.fillText("Game Over! Score: " + score, 100, 200);
-                    setTimeout(() => {
-                        alert("Game Over! Score: " + score); 
-                        startScreen.style.display = 'block'; 
-                    }, 100);
-                } else { 
-                    // [유지] 점수 표시 기능
-                    ctx.fillStyle = "black"; ctx.font = "16px Arial"; ctx.fillText("Score: " + score, 10, 20); 
-                    ctx.fillRect(paddleX, 390, paddleWidth, 10); 
-                    requestAnimationFrame(gameLoop); 
-                }
-            }
-        };
-    </script>
-</body>
-</html>
+                        ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fillStyle =
