@@ -26,11 +26,15 @@
     var balls = [{ x: 240, y: 370, dx: 1.2, dy: -1.2, radius: 8 }];
     var bricks = [], particles = [], score = 0, flash = 0;
 
-    // 사운드 객체 생성 (같은 폴더에 break.mp3 파일 필요)
-    const breakSound = new Audio('break.mp3');
+    // 사운드 설정
+    const breakSound = new Audio('break.wav');
+    const bgm = new Audio('bgm.wav');
+    bgm.loop = true;
+    bgm.volume = 0.5;
 
     function startGame() {
-        breakSound.load(); // 사운드 미리 로드
+        breakSound.load();
+        bgm.play().catch(e => console.log("BGM 자동 재생 대기"));
         document.getElementById('startScreen').style.display = 'none';
         running = true;
         gameLoop();
@@ -59,9 +63,38 @@
             
             balls.forEach(ball => {
                 if(ball.x > b.x && ball.x < b.x+50 && ball.y > b.y && ball.y < b.y+20) {
-                    // 사운드 재생
                     breakSound.currentTime = 0;
-                    breakSound.play().catch(e => console.log("상호작용 대기"));
+                    breakSound.play().catch(e => console.log("효과음 대기"));
 
                     if(b.type === 2) { bricks = bricks.filter(br => Math.abs(br.x - b.x) > 60); flash = 10; }
-                    else if(b
+                    else if(b.type === 1) balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8 });
+                    for(let k=0; k<10; k++) particles.push({x:b.x+25, y:b.y+10, dx:(Math.random()-0.5)*6, dy:(Math.random()-0.5)*6, life:20});
+                    ball.dy = -ball.dy; bricks.splice(i, 1); score++;
+                }
+            });
+        });
+
+        particles.forEach((p, i) => { p.x += p.dx; p.y += p.dy; p.life--; ctx.fillStyle="red"; ctx.fillRect(p.x, p.y, 3, 3); if(p.life <= 0) particles.splice(i, 1); });
+
+        balls.forEach((ball, i) => {
+            ball.x += ball.dx * (1 + score * 0.005);
+            ball.y += ball.dy * (1 + score * 0.005);
+            
+            if(ball.x > 470 || ball.x < 10) ball.dx = -ball.dx;
+            if(ball.y < 10) ball.dy = -ball.dy;
+            
+            if(ball.y > 385 && ball.x > paddleX - 5 && ball.x < paddleX + paddleWidth + 5) {
+                ball.dy = -Math.abs(ball.dy);
+                ball.dx = (ball.x - (paddleX + paddleWidth/2)) * 0.15;
+            }
+            
+            if(ball.y > 400) { balls.splice(i, 1); if(balls.length === 0) { running = false; bgm.pause(); alert("Score: "+score); location.reload(); } }
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2); ctx.fillStyle = "gold"; ctx.fill();
+        });
+
+        ctx.fillStyle = "black"; ctx.fillText("Score: " + score, 10, 20);
+        requestAnimationFrame(gameLoop);
+    }
+</script>
+</body>
+</html>
