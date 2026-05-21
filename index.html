@@ -61,7 +61,7 @@
         
         paddleX = mouseX - paddleWidth/2;
         ctx.fillStyle = "#34495e";
-        // 여기서 paddleWidth 대문자 확인!
+        // [중요 수정] paddlewidth -> paddleWidth로 수정 완료
         ctx.fillRect(paddleX, 390, paddleWidth, 10); 
 
         if(Math.random() < 0.015) {
