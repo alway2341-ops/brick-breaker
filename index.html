@@ -22,7 +22,7 @@
 
         document.getElementById('startScreen').addEventListener('click', function() {
             this.style.display = 'none';
-            balls = [{ x: 240, y: 100, dx: 2, dy: 3, radius: 8 }]; // 시작 Y값을 낮춰 위에서 시작
+            balls = [{ x: 240, y: 100, dx: 2, dy: 3, radius: 8 }];
             bricks = []; score = 0; running = true;
             requestAnimationFrame(gameLoop);
         });
@@ -52,11 +52,19 @@
                 ctx.fillRect(b.x, b.y, 50, 20);
 
                 balls.forEach(ball => {
-                    if (ball.x > b.x && ball.x < b.x + 50 && ball.y > b.y && ball.y < b.y + 20) {
-                        // 현실적인 반사: 블록 중심과 공의 거리에 따라 dx를 다르게 변경
-                        let hitPoint = (ball.x - (b.x + 25)) / 25; 
-                        ball.dx = hitPoint * 4; 
-                        ball.dy = -ball.dy;
+                    // 모서리 충돌 개선: 블록 경계선에서의 거리 체크
+                    let closestX = Math.max(b.x, Math.min(ball.x, b.x + 50));
+                    let closestY = Math.max(b.y, Math.min(ball.y, b.y + 20));
+                    
+                    let dx = ball.x - closestX;
+                    let dy = ball.y - closestY;
+                    
+                    // 반경 내에 들어오면 충돌로 간주
+                    if (dx * dx + dy * dy < ball.radius * ball.radius) {
+                        // 어느 면에 맞았는지에 따라 반사 방향 결정
+                        if (Math.abs(dx) > Math.abs(dy)) ball.dx *= -1;
+                        else ball.dy *= -1;
+                        
                         toRemove.push(i); score++;
                     }
                 });
@@ -65,27 +73,3 @@
 
             balls = balls.filter(ball => {
                 ball.x += ball.dx; ball.y += ball.dy;
-
-                // 벽 충돌 시 약간의 튕김 변화
-                if (ball.x < 0 || ball.x > 480) ball.dx *= -1;
-                if (ball.y < 0) ball.dy *= -1;
-
-                // 패들 충돌 시 굴절 로직 적용
-                if (ball.y > 380 && ball.x > paddleX && ball.x < paddleX + paddleWidth) {
-                    let impact = (ball.x - (paddleX + paddleWidth/2)) / (paddleWidth/2);
-                    ball.dx = impact * 5;
-                    ball.dy = -Math.abs(ball.dy);
-                }
-
-                ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2); ctx.fillStyle = "gold"; ctx.fill();
-                return ball.y < 400;
-            });
-
-            if (balls.length === 0) { running = false; alert("Game Over! Score: " + score); location.reload(); }
-            ctx.fillStyle = "black"; ctx.fillText("Score: " + score, 10, 20);
-            ctx.fillStyle = "#34495e"; ctx.fillRect(paddleX, 390, paddleWidth, 10);
-            requestAnimationFrame(gameLoop);
-        }
-    </script>
-</body>
-</html>
