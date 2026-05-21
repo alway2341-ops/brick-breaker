@@ -25,7 +25,7 @@
             const ctx = canvas.getContext("2d");
             const startScreen = document.getElementById("startScreen");
 
-            // 오디오 객체
+            // 오디오 객체 (브금, 효과음 유지)
             const loadAudio = (src) => {
                 try { return new Audio(src); } catch(e) { return { play: () => {}, pause: () => {}, currentTime: 0 }; }
             };
@@ -67,10 +67,10 @@
                 
                 ctx.clearRect(0, 0, 480, 400);
 
-                // [수정] 속도 가속 단위를 50으로 변경
+                // 속도 가속 단위 (50점 유지)
                 blockBaseSpeed = 1.2 + Math.floor(score / 50) * 0.3;
 
-                // 1. 블록 생성
+                // 1. 블록 생성 (노란색 회전 블록 포함 모든 블록 기능 유지)
                 if (Math.random() < 0.02) {
                     let r = Math.random();
                     let type = (score >= 300 && r < 0.05) ? 6 : (r < 0.15 ? 5 : (r < 0.25 ? 2 : (r < 0.45 ? 1 : 0)));
@@ -112,16 +112,4 @@
                 }
                 toRemove.sort((a,b) => b-a).forEach(i => bricks.splice(i, 1));
 
-                // 3. 파티클
-                particles.forEach((p, i) => { p.x += p.dx; p.y += p.dy; p.life--; if (p.life <= 0) particles.splice(i, 1); else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); } });
-
-                // 4. 공 업데이트 및 패들 충돌
-                let activeBalls = [];
-                balls.forEach(ball => {
-                    ball.x += ball.dx; ball.y += ball.dy;
-                    if (ball.x < 0 || ball.x > 480) ball.dx = -ball.dx;
-                    if (ball.y < 0) ball.dy = -ball.dy;
-                    
-                    // 패들 충돌
-                    if (ball.dy > 0 && ball.y + ball.radius >= 390 && ball.y + ball.radius <= 400 && ball.x > paddleX && ball.x < paddleX + paddleWidth) {
-                        //
+                // 3. 파티클 업데이트
