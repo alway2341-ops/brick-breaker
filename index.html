@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>최종 완성 벽돌 깨기</title>
+    <title>벽돌 깨기 - 최종 버그 수정</title>
     <style>
         body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         canvas { background: #f0f0f0; border: 4px solid #333; display: block; z-index: 1; }
@@ -23,11 +23,9 @@
             const ctx = canvas.getContext("2d");
             const startScreen = document.getElementById("startScreen");
 
-            const loadAudio = (src) => {
-                try { return new Audio(src); } catch(e) { return { play: () => {}, pause: () => {}, currentTime: 0 }; }
-            };
-            const breakSound = loadAudio('break.wav');
-            const bgm = loadAudio('bgm.wav'); bgm.loop = true;
+            // 오디오 (기존 유지)
+            const breakSound = new Audio('break.wav');
+            const bgm = new Audio('bgm.wav'); bgm.loop = true;
 
             let balls = [], bricks = [], particles = [], score = 0, running = false, paddleX = 190, paddleWidth = 100, blockBaseSpeed = 1.2;
 
@@ -53,18 +51,13 @@
                 paddleX = Math.max(0, Math.min(480 - paddleWidth, (e.clientX - rect.left) - paddleWidth / 2));
             });
 
-            function createParticles(x, y, color) {
-                for(let i = 0; i < 15; i++) {
-                    particles.push({ x, y, dx: (Math.random()-0.5)*6, dy: (Math.random()-0.5)*6, radius: 2, color, life: 20 });
-                }
-            }
-
             function gameLoop() {
                 if (!running) return;
+                
                 ctx.clearRect(0, 0, 480, 400);
                 blockBaseSpeed = 1.2 + Math.floor(score / 50) * 0.3;
 
-                // 1. 블록 생성
+                // 블록 생성
                 if (Math.random() < 0.02) {
                     let r = Math.random();
                     let type = (score >= 300 && r < 0.05) ? 6 : (r < 0.15 ? 5 : (r < 0.25 ? 2 : (r < 0.45 ? 1 : 0)));
@@ -73,7 +66,7 @@
                     bricks.push(b);
                 }
 
-                // 2. 블록 업데이트 및 충돌
+                // 블록 충돌 로직
                 let toRemove = [];
                 for (let i = 0; i < bricks.length; i++) {
                     let b = bricks[i];
@@ -90,12 +83,40 @@
                             if (Math.abs(ball.x - closestX) > Math.abs(ball.y - closestY)) ball.dx = -ball.dx;
                             else ball.dy = -ball.dy;
                             
-                            if (b.type === 6) { createParticles(b.x + 25, b.y + 10, "gold"); score += 5; toRemove.push(i); }
+                            breakSound.currentTime = 0; breakSound.play().catch(e => {});
+                            
+                            if (b.type === 6) { score += 5; toRemove.push(i); }
                             else if (b.type === 5) ball.dx = (Math.random() - 0.5) * 10;
                             else if (b.type === 2) { 
                                 let before = bricks.length;
                                 bricks = bricks.filter(br => Math.hypot(br.x - b.x, br.y - b.y) > 80);
                                 score += (before - bricks.length);
-                                createParticles(b.x + 25, b.y + 10, "#555");
-                            } else if (b.type === 1) { balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8 }); toRemove.push(i); createParticles(b.x + 25, b.y + 10, "#2ecc71"); score++; }
-                            else { toRemove.push(i); createParticles(b.x + 25, b.y + 10, "#e74c3c"); score++; }
+                            } else if (b.type === 1) { balls.push({ x: ball.x, y: ball.y, dx: -ball.dx, dy: -ball.dy, radius: 8 }); toRemove.push(i); score++; }
+                            else { toRemove.push(i); score++; }
+                        }
+                    });
+                }
+                toRemove.sort((a,b) => b-a).forEach(i => bricks.splice(i, 1));
+
+                // 공 업데이트 및 패들 충돌 (핵심 수정)
+                let activeBalls = [];
+                balls.forEach(ball => {
+                    ball.x += ball.dx; ball.y += ball.dy;
+                    if (ball.x < 0 || ball.x > 480) ball.dx = -ball.dx;
+                    if (ball.y < 0) ball.dy = -ball.dy;
+                    
+                    // 패들 충돌 보정 (강제 이동 포함)
+                    if (ball.dy > 0 && ball.y + ball.radius >= 390 && ball.y + ball.radius <= 400 && ball.x > paddleX && ball.x < paddleX + paddleWidth) {
+                        let mult = 1 + Math.floor(score / 50) * 0.1;
+                        ball.dx = ((ball.x - (paddleX + paddleWidth / 2)) / (paddleWidth / 2)) * 5 * mult;
+                        ball.dy = -Math.abs(ball.dy) * mult;
+                        ball.y = 390 - ball.radius; // <--- 핵심: 공을 패들 위로 강제 이동
+                    }
+
+                    // 공이 화면 밖으로 나갔는지 확인 (400px 기준)
+                    if (ball.y < 400) {
+                        activeBalls.push(ball);
+                        ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fillStyle = "gold"; ctx.fill();
+                    }
+                });
+                balls = activeBalls;
