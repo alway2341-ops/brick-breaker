@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>벽돌 깨기 - 최종 통합 버전</title>
+    <title>벽돌 깨기 - 모드+사운드 통합</title>
     <style>
         body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         canvas { background: #f0f0f0; border: 4px solid #333; display: block; z-index: 1; }
@@ -30,7 +30,7 @@
         const normalBtn = document.getElementById("normalBtn");
         const extremeBtn = document.getElementById("extremeBtn");
 
-        // 사운드 파일 로드
+        // 오디오 설정
         const breakSound = new Audio('break.wav');
         const bgm = new Audio('bgm.wav');
         bgm.loop = true;
@@ -50,10 +50,12 @@
             running = true;
             startScreen.style.display = 'none';
             
-            bgm.play().catch(e => console.log("음악 재생 시도"));
+            // 배경음 재생 시도
+            bgm.play().catch(e => console.log("BGM 재생 대기 중"));
             gameLoop();
         }
 
+        // 일반/극한 버튼 이벤트 리스너
         normalBtn.addEventListener('click', () => startGame('normal'));
         extremeBtn.addEventListener('click', () => startGame('extreme'));
 
@@ -72,7 +74,7 @@
             if (!running) return;
             ctx.clearRect(0, 0, 480, 400);
 
-            // 속도 분기 로직
+            // 속도 분기 로직 (모드에 따라 속도 다르게 적용)
             let increment = (gameMode === 'extreme') ? 0.3 : 0.1;
             let interval = (gameMode === 'extreme') ? 50 : 100;
             blockBaseSpeed = 1.2 + Math.floor(score / interval) * increment;
@@ -81,14 +83,4 @@
                 let r = Math.random();
                 let type = (score >= 300 && r < 0.05) ? 6 : (score >= 100 && r < 0.15 ? 5 : (r < 0.25 ? 2 : (r < 0.45 ? 1 : 0)));
                 let b = { x: Math.random() * 420, y: 0, type: type, speed: blockBaseSpeed };
-                if (type === 6) { b.rotAngle = 0; b.rotRadius = 50 + Math.random() * 100; b.center = { x: Math.random() * 400 + 40, y: Math.random() * 100 + 30 }; }
-                bricks.push(b);
-            }
-
-            let toRemove = [];
-            for (let i = 0; i < bricks.length; i++) {
-                let b = bricks[i];
-                if (b.type === 6) { b.rotAngle += 0.02 * b.speed; b.x = b.center.x + Math.cos(b.rotAngle) * b.rotRadius; b.y = b.center.y + Math.sin(b.rotAngle) * b.rotRadius; }
-                else { b.y += b.speed; }
-                
-                ctx.fillStyle = b.type === 6 ? "orange" : (b.type === 5 ? "#87CEEB" : (b.type === 2 ? "black" : (b.
+                if (type === 6) { b.rotAngle = 0; b.rotRadius = 50 + Math.random() * 100;
