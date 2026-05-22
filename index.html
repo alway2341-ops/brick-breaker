@@ -43,8 +43,8 @@
         let isBgmOn = true;
         let isSfxOn = true;
         
-        // 초기화 시 속도값 조정
-        const INITIAL_SPEED = 2.5; 
+        // 초기 속도값 및 제한값
+        const START_SPEED = 2.0; 
         const MAX_SPEED = 10;
 
         bgmBtn.addEventListener('click', (e) => { e.stopPropagation(); isBgmOn = !isBgmOn; bgmBtn.innerText = isBgmOn ? "BGM: 켜짐" : "BGM: 꺼짐"; });
@@ -54,8 +54,8 @@
             if (running) return;
             gameMode = mode;
             score = 0;
-            // 초기 시작 속도 정규화
-            balls = [{ x: 240, y: 100, dx: (Math.random() > 0.5 ? 1 : -1) * INITIAL_SPEED, dy: INITIAL_SPEED, radius: 8 }];
+            // 초기 시작 속도 고정
+            balls = [{ x: 240, y: 100, dx: (Math.random() > 0.5 ? 1 : -1) * START_SPEED, dy: START_SPEED, radius: 8 }];
             bricks = []; particles = []; paddleX = 190; blockBaseSpeed = 1.2; running = true;
             startScreen.style.display = 'none';
             if (isBgmOn) bgm.play().catch(e => {});
@@ -148,7 +148,7 @@
                     ball.y = 390 - ball.radius;
                 }
 
-                // 속도 제한: 극한 모드에서는 제한 로직을 건너뜀 (완전 해제)
+                // 극한 모드 아닐 때만 속도 제한 적용 (완전 해제 로직)
                 if (gameMode !== 'extreme') {
                     let speed = Math.hypot(ball.dx, ball.dy);
                     if (speed > MAX_SPEED) {
