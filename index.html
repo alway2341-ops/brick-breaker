@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>벽돌 깨기 - 최종 안정화</title>
+    <title>벽돌 깨기 - 최종 보정</title>
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #222; display: flex; justify-content: center; align-items: center; overflow: hidden; touch-action: none; }
         canvas { background: #f0f0f0; border: 4px solid #333; display: block; width: 90%; max-width: 480px; aspect-ratio: 480 / 400; touch-action: none; }
@@ -114,12 +114,13 @@
 
                         if (b.type === 5) { ball.radius = Math.max(3, ball.radius - 2); toRemove.add(i); } 
                         else if (b.type === 2) { 
-                            toRemove.add(i); 
-                            explodedBricks.push({x: b.x, y: b.y}); 
-                            score++; // 점수 추가
-                            // 공 반사 로직 추가 (투과 방지)
+                            // [수정] 검정색 블록과 부딪쳤을 때 반사 로직 추가 (투과 방지)
                             if (Math.abs(ball.x - closestX) > Math.abs(ball.y - closestY)) ball.dx = -ball.dx;
                             else ball.dy = -ball.dy;
+
+                            toRemove.add(i); 
+                            explodedBricks.push({x: b.x, y: b.y}); 
+                            score++; // 점수 추가 (검정색 블록 본인)
                         }
                         else {
                             if (Math.abs(ball.x - closestX) > Math.abs(ball.y - closestY)) ball.dx = -ball.dx;
@@ -133,8 +134,14 @@
                 });
             }
 
+            // [수정] 검정색 블록 폭발 시 주변 블록도 점수에 반영
             explodedBricks.forEach(exp => {
-                bricks.forEach((b, idx) => { if (Math.hypot(b.x - exp.x, b.y - exp.y) < 80) toRemove.add(idx); });
+                bricks.forEach((b, idx) => { 
+                    if (Math.hypot(b.x - exp.x, b.y - exp.y) < 80) {
+                        toRemove.add(idx); 
+                        score++; // 주변 블록 점수 추가
+                    }
+                });
                 createParticles(exp.x + 25, exp.y + 10, "#555");
             });
 
