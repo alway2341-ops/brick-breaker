@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>벽돌 깨기 - 안정화 버전</title>
+    <title>벽돌 깨기 - 최종 안정화</title>
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #222; display: flex; justify-content: center; align-items: center; overflow: hidden; touch-action: none; }
         canvas { background: #f0f0f0; border: 4px solid #333; display: block; width: 90%; max-width: 480px; aspect-ratio: 480 / 400; touch-action: none; }
@@ -38,13 +38,14 @@
         const bgm = new Audio('bgm.wav');
         bgm.loop = true;
 
-        // 게임 변수
         let balls = [], bricks = [], particles = [], score = 0, running = false, paddleX = 190, paddleWidth = 100, blockBaseSpeed = 1.2;
         let gameMode = 'normal';
         let isBgmOn = true;
         let isSfxOn = true;
-        const INITIAL_SPEED = 3; // 공 초기 속도 고정값
-        const MAX_SPEED = 10;    // 공 최대 속도 제한
+        
+        // 초기화 시 속도값 조정
+        const INITIAL_SPEED = 2.5; 
+        const MAX_SPEED = 10;
 
         bgmBtn.addEventListener('click', (e) => { e.stopPropagation(); isBgmOn = !isBgmOn; bgmBtn.innerText = isBgmOn ? "BGM: 켜짐" : "BGM: 꺼짐"; });
         sfxBtn.addEventListener('click', (e) => { e.stopPropagation(); isSfxOn = !isSfxOn; sfxBtn.innerText = isSfxOn ? "효과음: 켜짐" : "효과음: 꺼짐"; });
@@ -53,7 +54,7 @@
             if (running) return;
             gameMode = mode;
             score = 0;
-            // 초기 속도 안정화
+            // 초기 시작 속도 정규화
             balls = [{ x: 240, y: 100, dx: (Math.random() > 0.5 ? 1 : -1) * INITIAL_SPEED, dy: INITIAL_SPEED, radius: 8 }];
             bricks = []; particles = []; paddleX = 190; blockBaseSpeed = 1.2; running = true;
             startScreen.style.display = 'none';
@@ -97,7 +98,7 @@
             }
 
             let toRemove = new Set();
-            let explodedBricks = []; // 폭발 처리용
+            let explodedBricks = []; 
 
             for (let i = 0; i < bricks.length; i++) {
                 let b = bricks[i];
@@ -114,11 +115,7 @@
                         if(isSfxOn) { breakSound.currentTime = 0; breakSound.play().catch(e => {}); }
 
                         if (b.type === 5) { ball.radius = Math.max(3, ball.radius - 2); toRemove.add(i); } 
-                        else if (b.type === 2) { 
-                            toRemove.add(i); 
-                            // 폭발 위치 저장
-                            explodedBricks.push({x: b.x, y: b.y}); 
-                        }
+                        else if (b.type === 2) { toRemove.add(i); explodedBricks.push({x: b.x, y: b.y}); }
                         else {
                             if (Math.abs(ball.x - closestX) > Math.abs(ball.y - closestY)) ball.dx = -ball.dx;
                             else ball.dy = -ball.dy;
@@ -131,18 +128,12 @@
                 });
             }
 
-            // 폭발 로직 처리 (루프 외부)
             explodedBricks.forEach(exp => {
-                bricks.forEach((b, idx) => {
-                    if (Math.hypot(b.x - exp.x, b.y - exp.y) < 80) toRemove.add(idx);
-                });
+                bricks.forEach((b, idx) => { if (Math.hypot(b.x - exp.x, b.y - exp.y) < 80) toRemove.add(idx); });
                 createParticles(exp.x + 25, exp.y + 10, "#555");
             });
 
-            // 배열 정리
-            let removeArr = Array.from(toRemove).sort((a,b) => b-a);
-            removeArr.forEach(i => bricks.splice(i, 1));
-
+            Array.from(toRemove).sort((a,b) => b-a).forEach(i => bricks.splice(i, 1));
             particles.forEach((p, i) => { p.x += p.dx; p.y += p.dy; p.life--; if (p.life <= 0) particles.splice(i, 1); else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); } });
 
             let activeBalls = [];
@@ -152,13 +143,12 @@
                 if (ball.y < 0) ball.dy = -ball.dy;
                 
                 if (ball.dy > 0 && ball.y + ball.radius >= 390 && ball.y + ball.radius <= 400 && ball.x > paddleX && ball.x < paddleX + paddleWidth) {
-                    let hitPos = (ball.x - (paddleX + paddleWidth / 2)) / (paddleWidth / 2);
-                    ball.dx = hitPos * 5;
+                    ball.dx = ((ball.x - (paddleX + paddleWidth / 2)) / (paddleWidth / 2)) * 5;
                     ball.dy = -Math.abs(ball.dy);
                     ball.y = 390 - ball.radius;
                 }
 
-                // 속도 제한 (일반 모드)
+                // 속도 제한: 극한 모드에서는 제한 로직을 건너뜀 (완전 해제)
                 if (gameMode !== 'extreme') {
                     let speed = Math.hypot(ball.dx, ball.dy);
                     if (speed > MAX_SPEED) {
