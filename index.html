@@ -5,9 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>벽돌 깨기 - 최종 통합 버전</title>
     <style>
-        /* 아이패드 등 터치 기기에서 화면 스크롤 방지 */
-        html, body { margin: 0; padding: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
-        canvas { background: #f0f0f0; border: 4px solid #333; display: block; width: 100%; max-width: 480px; height: auto; touch-action: none; }
+        /* 화면 정렬 및 스크롤 방지 CSS */
+        html, body { 
+            margin: 0; padding: 0; 
+            width: 100%; height: 100%; 
+            background: #222; 
+            display: flex; justify-content: center; align-items: center; 
+            overflow: hidden; touch-action: none; 
+        }
+        canvas { 
+            background: #f0f0f0; 
+            border: 4px solid #333; 
+            display: block; 
+            width: 90%; /* 화면 비율 약간 확대 */
+            max-width: 540px; 
+            aspect-ratio: 480 / 400; /* 비율 유지 */
+            touch-action: none;
+        }
         #startScreen { 
             position: absolute; background: rgba(0,0,0,0.8); color: white; padding: 20px; 
             border-radius: 10px; z-index: 10; font-family: sans-serif; text-align: center; width: 80%; max-width: 300px;
@@ -40,9 +54,7 @@
         let gameMode = 'normal';
 
         function startGame(mode) {
-            // 이미 실행 중이면 중복 실행 방지
             if (running) return;
-            
             gameMode = mode;
             score = 0;
             balls = [{ x: 240, y: 100, dx: 2, dy: 3, radius: 8 }];
@@ -53,26 +65,26 @@
             running = true;
             startScreen.style.display = 'none';
             
-            // 오디오는 사용자의 클릭이 발생한 이후에만 재생하도록 설정
-            bgm.play().catch(e => console.log("BGM 재생 대기 중"));
+            // 오디오 재생
+            bgm.play().catch(e => console.log("BGM 재생 대기"));
             
-            // 루프 시작
             gameLoop();
         }
 
         normalBtn.addEventListener('click', () => startGame('normal'));
         extremeBtn.addEventListener('click', () => startGame('extreme'));
 
+        // 패들 이동 최적화
         function movePaddle(clientX) {
             const rect = canvas.getBoundingClientRect();
-            // 화면 스케일을 고려한 패들 위치 계산
+            // 화면 스케일 비율 계산
             const scaleX = canvas.width / rect.width;
-            paddleX = Math.max(0, Math.min(480 - paddleWidth, ((clientX - rect.left) * scaleX) - paddleWidth / 2));
+            const mouseX = (clientX - rect.left) * scaleX;
+            paddleX = Math.max(0, Math.min(480 - paddleWidth, mouseX - paddleWidth / 2));
         }
 
         canvas.addEventListener("mousemove", (e) => movePaddle(e.clientX));
         canvas.addEventListener("touchmove", (e) => {
-            // 터치 시 화면 움직임 강제 방지
             if (e.cancelable) e.preventDefault();
             movePaddle(e.touches[0].clientX);
         }, { passive: false });
@@ -151,30 +163,5 @@
                     ball.y = 390 - ball.radius;
                 }
 
-                // [수정: 극한 모드 아닐 때만 속도 제한 적용]
-                if (gameMode !== 'extreme') {
-                    const maxSpeed = 12;
-                    ball.dx = Math.max(-maxSpeed, Math.min(maxSpeed, ball.dx));
-                    ball.dy = Math.max(-maxSpeed, Math.min(maxSpeed, ball.dy));
-                }
-
-                if (ball.y < 400) {
-                    activeBalls.push(ball);
-                    ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fillStyle = "gold"; ctx.fill();
-                }
-            });
-            balls = activeBalls;
-
-            if (balls.length === 0) { 
-                running = false; 
-                bgm.pause();
-                ctx.fillStyle = "black"; ctx.font = "30px Arial"; ctx.fillText("Game Over! Score: " + score, 100, 200);
-                setTimeout(() => { alert("Game Over! Score: " + score); startScreen.style.display = 'block'; }, 100);
-            } else { 
-                ctx.fillStyle = "black"; ctx.font = "16px Arial"; ctx.fillText("Score: " + score, 10, 20); ctx.fillRect(paddleX, 390, paddleWidth, 10); 
-                requestAnimationFrame(gameLoop); 
-            }
-        }
-    </script>
-</body>
-</html>
+                // 속도 제한: 일반 모드에서만 적용 (극한 모드는 제한 없음)
+                if
