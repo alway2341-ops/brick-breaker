@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>벽돌 깨기 - 최종 실행 버전</title>
+    <title>벽돌 깨기 - 최종 통합 버전</title>
     <style>
-        body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
-        canvas { background: #f0f0f0; border: 4px solid #333; display: block; z-index: 1; width: 100%; max-width: 480px; height: auto; }
+        /* 아이패드 등 터치 기기에서 화면 스크롤 방지 */
+        html, body { margin: 0; padding: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        canvas { background: #f0f0f0; border: 4px solid #333; display: block; width: 100%; max-width: 480px; height: auto; touch-action: none; }
         #startScreen { 
             position: absolute; background: rgba(0,0,0,0.8); color: white; padding: 20px; 
             border-radius: 10px; z-index: 10; font-family: sans-serif; text-align: center; width: 80%; max-width: 300px;
@@ -39,7 +40,9 @@
         let gameMode = 'normal';
 
         function startGame(mode) {
+            // 이미 실행 중이면 중복 실행 방지
             if (running) return;
+            
             gameMode = mode;
             score = 0;
             balls = [{ x: 240, y: 100, dx: 2, dy: 3, radius: 8 }];
@@ -49,7 +52,11 @@
             blockBaseSpeed = 1.2;
             running = true;
             startScreen.style.display = 'none';
-            bgm.play().catch(e => {});
+            
+            // 오디오는 사용자의 클릭이 발생한 이후에만 재생하도록 설정
+            bgm.play().catch(e => console.log("BGM 재생 대기 중"));
+            
+            // 루프 시작
             gameLoop();
         }
 
@@ -58,13 +65,15 @@
 
         function movePaddle(clientX) {
             const rect = canvas.getBoundingClientRect();
+            // 화면 스케일을 고려한 패들 위치 계산
             const scaleX = canvas.width / rect.width;
             paddleX = Math.max(0, Math.min(480 - paddleWidth, ((clientX - rect.left) * scaleX) - paddleWidth / 2));
         }
 
         canvas.addEventListener("mousemove", (e) => movePaddle(e.clientX));
         canvas.addEventListener("touchmove", (e) => {
-            e.preventDefault();
+            // 터치 시 화면 움직임 강제 방지
+            if (e.cancelable) e.preventDefault();
             movePaddle(e.touches[0].clientX);
         }, { passive: false });
 
@@ -142,10 +151,12 @@
                     ball.y = 390 - ball.radius;
                 }
 
-                // [속도 제한 추가: 공이 너무 빨라지는 것 방지]
-                const maxSpeed = 12;
-                ball.dx = Math.max(-maxSpeed, Math.min(maxSpeed, ball.dx));
-                ball.dy = Math.max(-maxSpeed, Math.min(maxSpeed, ball.dy));
+                // [수정: 극한 모드 아닐 때만 속도 제한 적용]
+                if (gameMode !== 'extreme') {
+                    const maxSpeed = 12;
+                    ball.dx = Math.max(-maxSpeed, Math.min(maxSpeed, ball.dx));
+                    ball.dy = Math.max(-maxSpeed, Math.min(maxSpeed, ball.dy));
+                }
 
                 if (ball.y < 400) {
                     activeBalls.push(ball);
